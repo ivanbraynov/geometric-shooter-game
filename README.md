@@ -15,6 +15,6 @@ Survive waves of incoming geometric enemies by shooting them down while avoiding
 
 Achieve the highest score possible by destroying enemy ships. You have 3 lives.
 
-## Deployment
 
-This game is hosted on GitHub Pages. You can play it [here](https://<your-username>.github.io/<repository-name>/) (replace `<your-username>` and `<repository-name>` with your actual GitHub details). 
+This game is hosted on GitHub Pages
+https://ivanbraynov.github.io/geometric-shooter-game/
