@@ -6,6 +6,7 @@ let enemyProjectiles = []; // Corrected: Initialize as empty array
 let enemies = []; // Corrected: Initialize as empty array
 let stars =[]; // Corrected: Initialize as empty array
 let particleSystems =[]; // Corrected: Initialize as empty array
+let powerUps = []; // Array for power-up items
 
 let score = 0;
 let lives = 3;
@@ -22,7 +23,36 @@ let maxShakeAmplitude = 5; // pixels
 
 // Timing
 let lastSpawnTime = 0;
-let spawnInterval = 2000; // milliseconds
+let spawnInterval = 2000; // milliseconds (for enemies)
+let lastPowerUpSpawnTime = 0;
+let powerUpSpawnInterval = 15000; // milliseconds (e.g., every 15 seconds)
+
+// -------- Supabase Setup --------
+// Configuration constants are now in config.js
+// !! IMPORTANT: Replace placeholders in config.js with your actual Supabase URL and Anon Key !!
+
+
+let supabase = null; // Global variable to hold the Supabase client instance
+try {
+  // Correctly call the createClient function from the global Supabase object
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  console.log("Supabase client initialized.");
+} catch (error) {
+  console.error("Error initializing Supabase client:", error);
+  alert("Could not connect to the leaderboard service. Leaderboard will be unavailable.");
+}
+// -------- End Supabase Setup --------
+
+// -------- DOM Elements (for score form) --------
+let scoreFormDiv;
+let finalScoreDisplay;
+let usernameInput;
+let submitScoreButton;
+let scoreFeedback;
+
+// -------- Leaderboard Data --------
+let leaderboardScores = []; // To store fetched scores
+let leaderboardError = null; // To store fetch error message
 
 // -------- Setup --------
 function setup() {
@@ -41,6 +71,22 @@ function setup() {
   for (let i = 0; i < 200; i++) {
     stars.push(new Star());
   }
+
+  // Get references to score form elements
+  scoreFormDiv = select('#score-form');
+  finalScoreDisplay = select('#final-score-display');
+  usernameInput = select('#username-input');
+  submitScoreButton = select('#submit-score-button');
+  scoreFeedback = select('#score-feedback');
+
+  // Add event listener for score submission
+  submitScoreButton.mousePressed(handleScoreSubmit);
+
+  // Ensure form is hidden initially
+  scoreFormDiv.hide();
+
+  // Fetch initial leaderboard data
+  displayLeaderboard();
 }
 
 // -------- Main Draw Loop --------
@@ -130,12 +176,23 @@ function runGame() {
     }
   }
 
+  // Power-up Logic
+  spawnPowerUps();
+  for (let i = powerUps.length - 1; i >= 0; i--) {
+    powerUps[i].update();
+    powerUps[i].display();
+    if (powerUps[i].isOffscreen()) {
+      powerUps.splice(i, 1);
+    }
+  }
+
   // Collision Detection
   checkCollisions();
 
   // Check Game Over Condition
-  if (lives <= 0) {
+  if (lives <= 0 && gameState !== 'GAME_OVER') { // Only trigger once
     gameState = 'GAME_OVER';
+    showScoreForm(); // Show the form when game ends
   }
 }
 
@@ -144,21 +201,32 @@ function drawStartMenu() {
   textSize(48);
   text('Geometric Shooter', width / 2, height / 3);
   textSize(24);
-  text('Use Arrow Keys or WASD to Move', width / 2, height / 2);
-  text('Press SPACE to Shoot', width / 2, height / 2 + 40);
+  text('Use Arrow Keys or WASD to Move', width / 2, height / 2 - 60);
+  text('Press SPACE to Shoot', width / 2, height / 2 - 20);
   textSize(32);
-  text('Press SPACE to Start', width / 2, height * 2 / 3);
+  text('Press SPACE to Start', width / 2, height / 2 + 40);
+
+  // Draw Leaderboard on Start Menu
+  drawLeaderboardToCanvas(width / 2, height * 0.65); // Position below start text
 }
 
 function drawGameOver() {
   fill(255, 0, 0);
   textSize(64);
-  text('GAME OVER', width / 2, height / 3);
+  text('GAME OVER', width / 2, height / 4); // Position higher
   fill(255);
   textSize(32);
-  text(`Final Score: ${score}`, width / 2, height / 2);
-  textSize(24);
-  text('Press SPACE to Restart', width / 2, height * 2 / 3);
+  // Don't show final score here if the form is visible
+  if (scoreFormDiv.style('display') === 'none') {
+     text(`Final Score: ${score}`, width / 2, height / 3 + 20);
+     textSize(24);
+     text('Press SPACE to Restart', width / 2, height * 0.9); // Position lower
+  }
+
+  // Draw Leaderboard on Game Over screen (if form is hidden)
+  if (scoreFormDiv.style('display') === 'none') {
+      drawLeaderboardToCanvas(width / 2, height / 2); // Position in the middle
+  }
 }
 
 function drawHUD() {
@@ -166,6 +234,18 @@ function drawHUD() {
   textSize(20);
   textAlign(LEFT, TOP);
   text(`Score: ${score}`, 20, 20);
+
+  // Display Power-up Timer if active
+  if (player && player.powerUpActive) {
+    let remainingSeconds = ceil(player.powerUpTimer / 60);
+    fill(255, 255, 0); // Yellow for timer text
+    textSize(18);
+    textAlign(CENTER, TOP);
+    text(`${player.powerUpType.replace('_', ' ').toUpperCase()} ACTIVE: ${remainingSeconds}s`, width / 2, 15);
+    fill(255); // Reset fill color
+    textSize(20); // Reset text size
+  }
+
   textAlign(RIGHT, TOP);
   // Draw lives as icons (mini player ships)
   let lifeIconSize = 15;
@@ -185,17 +265,155 @@ function drawHUD() {
   textAlign(CENTER, CENTER); // Reset alignment
 }
 
+// -------- Score Form Handling --------
+function showScoreForm() {
+  if (scoreFormDiv && finalScoreDisplay && usernameInput) {
+    finalScoreDisplay.html(`Final Score: ${score}`); // Update score display
+    usernameInput.value(''); // Clear previous input
+    scoreFeedback.html(''); // Clear previous feedback
+    submitScoreButton.removeAttribute('disabled'); // Ensure button is enabled
+    scoreFormDiv.show();
+  }
+}
+
+async function handleScoreSubmit() {
+  if (!supabase) {
+    scoreFeedback.html('Error: Leaderboard service unavailable.');
+    return;
+  }
+
+  const username = usernameInput.value().trim();
+  if (!username) {
+    alert('Please enter a username.');
+    return;
+  }
+
+  // Disable button while submitting
+  submitScoreButton.attribute('disabled', true);
+  scoreFeedback.html('Submitting...');
+
+  try {
+    const { data, error } = await supabase
+      .from('scores')
+      .insert([{ username: username, score: score }])
+      .select(); // Select to potentially get back the inserted data (optional)
+
+    if (error) {
+      throw error; // Throw error to be caught by catch block
+    }
+
+    console.log('Score submitted successfully:', data);
+    scoreFeedback.html('Score Submitted!');
+
+    // Fetch updated leaderboard after successful submission
+    displayLeaderboard();
+
+    setTimeout(() => {
+        scoreFormDiv.hide();
+        // Leaderboard will be drawn automatically in drawGameOver now
+    }, 1500);
+
+  } catch (error) {
+    console.error('Error submitting score:', error.message);
+    scoreFeedback.html(`Error: ${error.message}`);
+    submitScoreButton.removeAttribute('disabled'); // Re-enable button on error
+  }
+}
+
+// -------- Leaderboard Handling --------
+async function displayLeaderboard() {
+    if (!supabase) {
+        leaderboardError = "Leaderboard service unavailable.";
+        console.warn(leaderboardError);
+        return;
+    }
+
+    console.log("Fetching leaderboard...");
+    leaderboardError = null; // Clear previous error
+    try {
+        const { data, error } = await supabase
+            .from('scores')
+            .select('username, score, created_at')
+            .order('score', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            throw error;
+        }
+
+        leaderboardScores = data || []; // Store fetched data, default to empty array
+        console.log("Leaderboard fetched:", leaderboardScores);
+
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error.message);
+        leaderboardError = `Error loading scores: ${error.message}`;
+        leaderboardScores = []; // Clear scores on error
+    }
+    // No drawing here, drawing happens in drawLeaderboardToCanvas
+}
+
+// Function to draw the leaderboard onto the canvas
+function drawLeaderboardToCanvas(x, y) {
+    push(); // Isolate text settings
+    fill(255);
+    textSize(20);
+    textAlign(CENTER, TOP);
+    text("--- Leaderboard --- ", x, y);
+
+    if (leaderboardError) {
+        fill(255, 100, 100); // Red for error message
+        textSize(16);
+        text(leaderboardError, x, y + 30);
+    } else if (leaderboardScores.length === 0) {
+        textSize(16);
+        text("No scores yet!", x, y + 30);
+    } else {
+        textSize(18);
+        textAlign(CENTER, TOP); // Center alignment for the whole line
+        const startY = y + 35;
+        const lineHeight = 22;
+
+        for (let i = 0; i < leaderboardScores.length; i++) {
+            const currentY = startY + i * lineHeight;
+            const rank = i + 1;
+            const entry = leaderboardScores[i];
+            let formattedDateTime = "";
+
+            // Format the timestamp
+            try {
+                const date = new Date(entry.created_at);
+                const dateString = date.toLocaleDateString();
+                const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                formattedDateTime = `${dateString} ${timeString}`;
+            } catch (e) {
+                formattedDateTime = "-invalid date-";
+                console.error("Error formatting date:", entry.created_at, e);
+            }
+
+            // Construct the single line string
+            const scoreText = `${rank}. ${entry.username} - ${entry.score} - ${formattedDateTime}`;
+
+            // Draw the centered text
+            text(scoreText, x, currentY);
+        }
+    }
+    pop(); // Restore previous text settings
+}
+
 // -------- Input Handling --------
 function keyPressed() {
-  // REMOVED: pressedKeys tracking
-  // pressedKeys[key] = true;
-  // pressedKeys[keyCode] = true;
-
   // Player Shooting & State Transitions (using direct key check)
   if (key === ' ' || keyCode === 32) { // Check Space bar directly
       if (gameState === 'PLAYING') {
           player.shoot();
-      } else if (gameState === 'START_MENU' || gameState === 'GAME_OVER') {
+      } else if (gameState === 'GAME_OVER') {
+          // Only restart if the score form is NOT visible
+          // Otherwise space might be used for username input
+          if (scoreFormDiv && scoreFormDiv.style('display') === 'none') {
+             resetGame();
+             gameState = 'PLAYING';
+          }
+      } else if (gameState === 'START_MENU') {
           resetGame();
           gameState = 'PLAYING';
       }
@@ -214,9 +432,12 @@ function resetGame() {
   enemyProjectiles =[]; // Corrected: Reset to empty array
   enemies =[]; // Corrected: Reset to empty array
   particleSystems =[]; // Corrected: Reset to empty array
+  powerUps = []; // Reset power-up array
   player.reset(width / 2, height - 50);
   lastSpawnTime = millis(); // Reset spawn timer
   spawnInterval = 2000; // Reset spawn interval
+  lastPowerUpSpawnTime = millis(); // Reset power-up spawn timer
+  powerUpSpawnInterval = 15000; // Reset power-up spawn interval
 }
 
 // -------- Collision Detection --------
@@ -263,6 +484,31 @@ function checkCollisions() {
       break;
     }
   }
+
+  // Player Projectiles vs PowerUps
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    // Ensure projectile exists before checking collision
+    if (!projectiles[i]) continue; // Skip if projectile was already removed (e.g., hit enemy)
+
+    for (let j = powerUps.length - 1; j >= 0; j--) {
+      // Ensure powerUp exists
+      if (powerUps[j] && projectiles[i].collidesWith(powerUps[j])) {
+        console.log("Player hit power-up!"); // Debug log
+        let powerUpType = powerUps[j].type;
+        
+        // Remove the power-up and the projectile
+        powerUps.splice(j, 1);
+        projectiles.splice(i, 1);
+
+        // --- ACTIVATE POWER-UP ON PLAYER (Phase 4) ---
+        player.activatePowerUp(powerUpType, 10); // Activate for 10 seconds
+        // --- End Activate Power-up ---
+
+        // Important: break inner loop after collision to prevent projectile hitting multiple powerups
+        break; 
+      }
+    }
+  }
 }
 
 
@@ -293,6 +539,20 @@ function spawnEnemies() {
   }
 }
 
+// -------- Power-Up Spawning --------
+function spawnPowerUps() {
+  let currentTime = millis();
+  if (currentTime > lastPowerUpSpawnTime + powerUpSpawnInterval) {
+    lastPowerUpSpawnTime = currentTime;
+
+    // Create a power-up at a random x position near the top
+    let x = random(50, width - 50);
+    let y = random(-100, -50);
+    powerUps.push(new PowerUp(x, y));
+    console.log('Power-up spawned!'); // Optional: for debugging
+  }
+}
+
 // -------- Screen Shake Trigger --------
 function triggerShake(duration, amplitude) {
   shakeDuration = max(shakeDuration, duration);
@@ -306,18 +566,26 @@ class Player {
     this.vel = createVector(0, 0);
     this.size = 20; // Base size for collision and drawing scale
     this.speed = 5; // Movement speed factor
-    this.friction = 0.9; // Lower value = more slippery, Higher = more friction
     this.thrusting = false;
     this.lastShotTime = 0;
     this.fireRateCooldown = 150; // milliseconds between shots
     this.hitTimer = 0; // Invincibility frames after hit
     this.hitDuration = 60; // How many frames invincibility lasts
+
+    // Power-up state
+    this.powerUpActive = false;
+    this.powerUpType = null;
+    this.powerUpTimer = 0; // Remaining frames for the power-up
   }
 
   reset(x, y) {
       this.pos.set(x, y);
       this.vel.set(0, 0);
       this.hitTimer = 0;
+      // Reset power-up state on game reset
+      this.powerUpActive = false;
+      this.powerUpType = null;
+      this.powerUpTimer = 0;
   }
 
   // Revised Input Handling - Using keyIsDown()
@@ -353,12 +621,21 @@ class Player {
 
 
   update() {
-    // this.vel.mult(this.friction); // REMOVED: No friction in direct control model
     this.pos.add(this.vel); // Update position based on velocity
 
     // Countdown invincibility timer
     if (this.hitTimer > 0) {
         this.hitTimer--;
+    }
+
+    // Countdown power-up timer
+    if (this.powerUpActive) {
+        this.powerUpTimer--;
+        if (this.powerUpTimer <= 0) {
+            this.powerUpActive = false;
+            this.powerUpType = null;
+            console.log("Power-up expired!");
+        }
     }
   }
 
@@ -366,37 +643,63 @@ class Player {
     push();
     translate(this.pos.x, this.pos.y);
 
-    // Flicker effect when hit and invulnerable
-    if (this.hitTimer > 0 && frameCount % 6 < 3) {
-       // Don't draw every few frames to create flicker
-       // (Adjust frameCount % X < Y for different flicker speeds)
+    // Determine fill color based on power-up state
+    let bodyColor = this.powerUpActive ? color(100, 255, 100) : color(0, 200, 255); // Green if active, else Cyan
+
+    // Optional: Pulsing outline when power-up is active
+    if (this.powerUpActive) {
+        let pulseAlpha = map(sin(frameCount * 0.2), -1, 1, 100, 255);
+        stroke(255, 255, 0, pulseAlpha); // Pulsing yellow outline
+        strokeWeight(2);
     } else {
-        // Main Body (Triangle)
-        fill(0, 200, 255); // Bright cyan
         noStroke();
-        triangle(0, -this.size * 0.8, -this.size * 0.5, this.size * 0.5, this.size * 0.5, this.size * 0.5);
+    }
 
-        // Cockpit (Small Ellipse)
-        fill(255); // White
-        ellipse(0, -this.size * 0.2, this.size * 0.3, this.size * 0.4);
+    // Main Body (Triangle)
+    fill(bodyColor);
+    triangle(0, -this.size * 0.8, -this.size * 0.5, this.size * 0.5, this.size * 0.5, this.size * 0.5);
 
-        // Engine (Rectangle)
-        fill(255, 150, 0); // Orange
-        rect(0, this.size * 0.6, this.size * 0.4, this.size * 0.3);
+    noStroke(); // Ensure rest of ship parts have no stroke unless specified
 
-        // Thrust Flame (when moving up/thrusting)
-        if (this.thrusting) {
-            fill(255, random(100, 200), 0, 200); // Flickering orange/yellow, semi-transparent
-            triangle(0, this.size * 0.8, -this.size * 0.2, this.size * 1.1, this.size * 0.2, this.size * 1.1);
-        }
+    // Cockpit (Small Ellipse)
+    fill(255); // White
+    ellipse(0, -this.size * 0.2, this.size * 0.3, this.size * 0.4);
+
+    // Engine (Rectangle)
+    fill(255, 150, 0); // Orange
+    rect(0, this.size * 0.6, this.size * 0.4, this.size * 0.3);
+
+    // Thrust Flame (when moving up/thrusting)
+    if (this.thrusting) {
+        fill(255, random(100, 200), 0, 200); // Flickering orange/yellow, semi-transparent
+        triangle(0, this.size * 0.8, -this.size * 0.2, this.size * 1.1, this.size * 0.2, this.size * 1.1);
     }
     pop();
   }
 
   shoot() {
     let currentTime = millis();
-    if (currentTime > this.lastShotTime + this.fireRateCooldown) {
-      projectiles.push(new Projectile(this.pos.x, this.pos.y - this.size * 0.8, 'player'));
+    // Adjust fire rate if power-up is active (optional)
+    let currentFireRate = this.powerUpActive && this.powerUpType === 'rapid_fire' ? this.fireRateCooldown * 0.7 : this.fireRateCooldown;
+
+    if (currentTime > this.lastShotTime + currentFireRate) {
+      // Check for active power-up
+      if (this.powerUpActive && this.powerUpType === 'rapid_fire') {
+        // Rapid Fire: Shoot 3 projectiles in a spread
+        let spreadAngle = PI / 18; // ~10 degrees spread total
+        // Center shot
+        projectiles.push(new Projectile(this.pos.x, this.pos.y - this.size * 0.8, 'player'));
+        // Left shot
+        let leftVel = p5.Vector.fromAngle(-HALF_PI - spreadAngle, 10);
+        projectiles.push(new Projectile(this.pos.x, this.pos.y - this.size * 0.8, 'player', leftVel));
+        // Right shot
+        let rightVel = p5.Vector.fromAngle(-HALF_PI + spreadAngle, 10);
+        projectiles.push(new Projectile(this.pos.x, this.pos.y - this.size * 0.8, 'player', rightVel));
+        console.log("Rapid fire shot!");
+      } else {
+        // Normal shot
+        projectiles.push(new Projectile(this.pos.x, this.pos.y - this.size * 0.8, 'player'));
+      }
       this.lastShotTime = currentTime;
     }
   }
@@ -456,29 +759,47 @@ class Player {
   }
 
   hit() {
-      // Only register hit if not currently invincible
+      // Prevent damage if power-up is active
+      if (this.powerUpActive) {
+          console.log("Hit absorbed by active power-up!");
+          // Optional: Add different visual/audio feedback for absorbed hit
+          // triggerShake(5, 1); // e.g., smaller shake
+          return; // Exit before taking damage
+      }
+
+      // Only register hit if not currently invincible from previous hit
       if (this.hitTimer <= 0) {
           lives--;
           this.hitTimer = this.hitDuration; // Start invincibility timer
           triggerShake(15, 4); // Trigger screen shake on hit
       }
   }
+
+  activatePowerUp(type, durationSeconds) {
+    console.log(`Player activated ${type} power-up for ${durationSeconds} seconds`);
+    this.powerUpActive = true;
+    this.powerUpType = type;
+    this.powerUpTimer = durationSeconds * 60; // Convert seconds to frames (assuming 60fps)
+    // Add visual/audio feedback here if desired
+  }
 }
 
 // -------- Projectile Class --------
 class Projectile {
-  constructor(x, y, owner) {
+  constructor(x, y, owner, initialVel = null) { // Added initialVel parameter
     this.pos = createVector(x, y);
-    this.owner = owner; // 'player' or 'enemy'
+    this.owner = owner;
 
     if (this.owner === 'player') {
-      this.vel = createVector(0, -10); // Upwards velocity
-      this.size = createVector(3, 15); // Width, Height for drawing (used as radius sometimes)
-      this.color = color(255, 255, 255); // White
+      // Use initialVel if provided, otherwise default upwards velocity
+      this.vel = initialVel ? initialVel.copy() : createVector(0, -10);
+      this.size = createVector(3, 15);
+      this.color = color(255, 255, 255);
     } else { // Enemy projectile
-      this.vel = createVector(0, 5); // Default Downwards velocity
-      this.size = createVector(8, 8); // Width, Height for drawing (used as radius sometimes)
-      this.color = color(255, 50, 50); // Red
+       // Enemy projectiles might also use initialVel if aiming logic needs it
+      this.vel = initialVel ? initialVel.copy() : createVector(0, 5);
+      this.size = createVector(8, 8);
+      this.color = color(255, 50, 50);
     }
   }
 
@@ -771,6 +1092,71 @@ class ParticleSystem {
   // Check if all particles in this system are dead
   isDead() {
     return this.particles.length === 0;
+  }
+}
+
+// -------- PowerUp Class --------
+class PowerUp {
+  constructor(x, y) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(0, 1); // Slow downward drift
+    this.size = 15;
+    this.type = 'rapid_fire'; // Could be expanded later (e.g., 'shield')
+    this.color = color(255, 255, 0); // Yellow
+    this.pulseOffset = random(TWO_PI); // For unique pulsing per item
+  }
+
+  update() {
+    this.pos.add(this.vel);
+  }
+
+  display() {
+    push();
+    translate(this.pos.x, this.pos.y);
+
+    // Pulsing effect for size
+    let pulse = sin(frameCount * 0.1 + this.pulseOffset) * 0.15 + 0.85; // Sin wave between ~0.85 and 1.0
+    let currentSize = this.size * pulse;
+
+    // Draw a star shape
+    fill(this.color);
+    noStroke();
+    beginShape();
+    for (let i = 0; i < 5; i++) {
+      let angle = TWO_PI / 5 * i - HALF_PI; // Offset to point upwards
+      let x = cos(angle) * currentSize;
+      let y = sin(angle) * currentSize;
+      vertex(x, y);
+      angle += TWO_PI / 10;
+      x = cos(angle) * currentSize * 0.5; // Inner point
+      y = sin(angle) * currentSize * 0.5;
+      vertex(x, y);
+    }
+    endShape(CLOSE);
+
+    pop();
+  }
+
+  // Collision check based on distance (circle approximation)
+  collidesWith(other) {
+    let d = dist(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
+    // Calculate other's radius based on its type
+    let otherRadius = 0;
+    if (other instanceof Projectile) {
+        // Player projectiles are tall rectangles, use max dimension
+         otherRadius = max(other.size.x, other.size.y) / 2;
+    } else {
+        // Assume simple size property for other types (like Player)
+        otherRadius = (other.size || 0) / 2;
+    }
+    // PowerUp radius
+    let powerUpRadius = this.size / 2;
+    return d < powerUpRadius + otherRadius;
+  }
+
+  // Check if power-up is off the bottom of the screen
+  isOffscreen() {
+    return (this.pos.y > height + this.size / 2);
   }
 }
 

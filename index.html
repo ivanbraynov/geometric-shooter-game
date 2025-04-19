@@ -5,10 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Geometric Shooter</title>
     <style> body {padding: 0; margin: 0; overflow: hidden;} </style>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.5/lib/p5.min.js"></script> <script src="sketch.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.5/lib/p5.min.js"></script>
+    <!-- Add Supabase Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Add Game Configuration -->
+    <script src="config.js"></script>
+    <script src="sketch.js"></script>
   </head>
   <body>
     <main>
     </main>
+
+    <!-- Score Submission Form (Initially Hidden) -->
+    <div id="score-form" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(200, 200, 200, 0.9); padding: 20px; border-radius: 10px; text-align: center; font-family: monospace;">
+      <h3>Game Over!</h3>
+      <p id="final-score-display">Final Score: 0</p>
+      <label for="username">Enter Username:</label><br>
+      <input type="text" id="username-input" name="username" maxlength="15" required><br><br>
+      <button id="submit-score-button">Submit Score</button>
+      <p id="score-feedback" style="margin-top: 10px; color: green; font-weight: bold;"></p>
+    </div>
+
   </body>
 </html>
