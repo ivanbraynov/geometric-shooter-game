@@ -1,11 +1,24 @@
 class PowerUp {
-  constructor(x, y) {
+  constructor(x, y, type = POWERUP_TYPES.RAPID_FIRE) {
     this.pos = createVector(x, y);
     this.vel = createVector(0, 1); // Slow downward drift
     this.size = 15;
-    this.type = POWERUP_TYPES.RAPID_FIRE; // Use constant
-    this.color = color(255, 255, 0); // Yellow
+    this.type = type; // Set type based on argument
     this.pulseOffset = random(TWO_PI); // For unique pulsing per item
+
+    // Set color based on type (can be moved to display if needed)
+    switch(this.type) {
+      case POWERUP_TYPES.EXTRA_LIFE:
+        this.color = color(0, 255, 0); // Green
+        break;
+      case POWERUP_TYPES.NUKE:
+        this.color = color(255, 0, 0); // Red
+        break;
+      case POWERUP_TYPES.RAPID_FIRE:
+      default:
+        this.color = color(255, 255, 0); // Yellow
+        break;
+    }
   }
 
   update() {

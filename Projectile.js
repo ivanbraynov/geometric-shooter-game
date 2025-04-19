@@ -42,19 +42,24 @@ class Projectile {
   // Collision check based on distance (circle approximation)
   collidesWith(other) {
     let d = dist(this.pos.x, this.pos.y, other.pos.x, other.pos.y);
-    // Use half of width/height (max for player, width for enemy circle) as radius approx
-    let collisionRadius = (this.owner === 'player'? max(this.size.x, this.size.y) / 2 : this.size.x / 2);
-    // Other object's radius needs to be determined carefully
+
+    // Radius of THIS projectile
+    let collisionRadius = (this.owner === 'player' ? max(this.size.x, this.size.y) / 2 : this.size.x / 2);
+
+    // Radius of the OTHER object
     let otherRadius = 0;
-     if (other instanceof Enemy) {
+    if (other instanceof Enemy || other instanceof Player || other instanceof PowerUp) {
+        // These use a simple numerical size property
         otherRadius = other.size / 2;
-     } else if (other instanceof Player) {
-         otherRadius = other.size / 2;
-     } else if (other instanceof PowerUp) { // Added check for PowerUp
-         otherRadius = other.size / 2;
-     } else {
-         otherRadius = (other.size || 0) / 2; // Fallback
-     }
+    } else if (other instanceof Projectile) {
+        // Other is also a projectile, calculate its radius based on its properties
+        otherRadius = (other.owner === 'player' ? max(other.size.x, other.size.y) / 2 : other.size.x / 2);
+    } else {
+        // Fallback for unknown types (should not happen in current game)
+        console.warn("Collision check with unknown object type:", other);
+        otherRadius = (other.size || 0) / 2; // Attempt fallback, likely incorrect
+    }
+
     return d < collisionRadius + otherRadius;
   }
 } 

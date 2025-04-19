@@ -7,6 +7,7 @@ let enemies = [];
 let stars =[]; 
 let particleSystems =[]; 
 let powerUps = []; 
+let celestialBodies = []; // Array for background planets/suns
 
 let score = 0;
 let lives = 3;
@@ -25,7 +26,6 @@ let spawnInterval = 2000; // milliseconds (for enemies)
 let lastPowerUpSpawnTime = 0;
 let powerUpSpawnInterval = 15000; // milliseconds (e.g., every 15 seconds)
 
-
 // -------- Setup --------
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -42,6 +42,15 @@ function setup() {
   stars = []; // Ensure stars array is empty before setup
   for (let i = 0; i < 200; i++) {
     stars.push(new Star());
+  }
+
+  // Initialize Celestial Bodies
+  celestialBodies = []; // Ensure array is empty
+  let numBodies = 4; // Number of background planets/suns
+  for (let i = 0; i < numBodies; i++) {
+      // Spread them out vertically initially
+      let startY = map(i, 0, numBodies, 0, height); 
+      celestialBodies.push(new CelestialBody(startY));
   }
 
   // Initialize UI Elements (from ui.js)
@@ -68,6 +77,13 @@ function draw() {
 
   // Background
   background(10, 10, 30); // Dark blue space
+
+  // --- Draw Celestial Bodies (Behind Stars) ---
+  for (let i = celestialBodies.length - 1; i >= 0; i--) {
+    celestialBodies[i].update();
+    celestialBodies[i].display();
+  }
+  // --- End Celestial Bodies ---
 
   // Draw Stars
   for (let i = stars.length - 1; i >= 0; i--) {
@@ -165,17 +181,127 @@ function runGame() {
 }
 
 function drawStartMenu() {
-  fill(255);
-  textSize(48);
-  text('Geometric Shooter', width / 2, height / 3);
-  textSize(24);
-  text('Use Arrow Keys or WASD to Move', width / 2, height / 2 - 60);
-  text('Press SPACE to Shoot', width / 2, height / 2 - 20);
-  textSize(32);
-  text('Press SPACE to Start', width / 2, height / 2 + 40);
+    const titleSize = 64;
+    const headingSize = 28;
+    const textSizeLarge = 20;
+    const textSizeSmall = 16;
+    const sectionSpacing = 80; // Vertical space between sections
+    let currentY = height * 0.1;
 
-  // Draw Leaderboard on Start Menu
-  drawLeaderboardToCanvas(width / 2, height * 0.65);
+    // --- 1. Game Title ---
+    fill(255);
+    textSize(titleSize);
+    textAlign(CENTER, TOP);
+    text('Geometric Shooter', width / 2, currentY);
+    currentY += titleSize + sectionSpacing * 0.8;
+
+    // --- 2. Instructions ---
+    textSize(headingSize);
+    textAlign(CENTER, TOP);
+    text('How to Play', width / 2, currentY);
+    currentY += headingSize + 15;
+
+    textSize(textSizeLarge);
+    textAlign(CENTER, TOP);
+    text('Move: Arrow Keys or WASD', width / 2, currentY);
+    currentY += textSizeLarge + 5;
+    text('Shoot: SPACE Bar', width / 2, currentY);
+    currentY += textSizeLarge + 5;
+    text('Start/Restart: SPACE Bar', width / 2, currentY);
+    currentY += textSizeLarge + sectionSpacing;
+
+    // --- 3. Item Examples ---
+    textSize(headingSize);
+    textAlign(CENTER, TOP);
+    text('Items', width / 2, currentY);
+    currentY += headingSize + 15;
+
+    const itemSize = 20;
+    const labelOffsetX = 25;
+    const column1X = width * 0.4; // Adjusted column positions slightly
+    const column2X = width * 0.6;
+    let examplesY = currentY;
+
+    // Enemies Column
+    textSize(textSizeSmall);
+    textAlign(LEFT, CENTER);
+    // Drone
+    let bobOffset1 = sin(frameCount * 0.05) * 3; // Calculate bobbing offset
+    push(); translate(column1X, examplesY + itemSize / 2 + bobOffset1); scale(itemSize / 25);
+    fill(150, 150, 150); stroke(255); strokeWeight(1.5); rect(0, 0, 25, 25, 3);
+    fill(75, 75, 75, 180); noStroke(); rect(0, 0, 25 * 0.6, 25 * 0.6, 2);
+    pop();
+    text("Drone", column1X + labelOffsetX, examplesY + itemSize / 2);
+    examplesY += itemSize + 15;
+    // Scout
+    let bobOffset2 = sin(frameCount * 0.06 + 1) * 3; // Different speed/phase
+    push(); translate(column1X, examplesY + itemSize / 2 + bobOffset2); scale(itemSize / 20);
+    fill(200, 100, 255); stroke(255); strokeWeight(1.5); triangle(0, -20 / 1.5, -10, 10, 10, 10);
+    fill(255, 255, 0); noStroke(); ellipse(0, 2, 6, 6);
+    pop();
+    text("Scout", column1X + labelOffsetX, examplesY + itemSize / 2);
+    examplesY += itemSize + 15;
+    // Heavy
+    let bobOffset3 = sin(frameCount * 0.04 + 2) * 3; // Different speed/phase
+    push(); translate(column1X, examplesY + itemSize / 2 + bobOffset3); scale(itemSize / 40);
+    fill(50, 100, 200); stroke(255); strokeWeight(1.5); rect(0, 0, 40, 32, 5);
+    fill(35, 70, 140); stroke(200); strokeWeight(1); rect(-12, 16, 8, 16); rect(12, 16, 8, 16);
+    pop();
+    text("Heavy", column1X + labelOffsetX, examplesY + itemSize / 2);
+
+    // Power-ups Column
+    examplesY = currentY; // Reset Y for second column
+    textSize(textSizeSmall);
+    textAlign(LEFT, CENTER);
+    const powerUpBaseSize = 15; // Original size defined in PowerUp class
+
+    // Rapid Fire
+    push();
+    translate(column2X, examplesY + itemSize / 2);
+    // Re-add pulsing calculation
+    let pulse1 = sin(frameCount * 0.1 + 0) * 0.15 + 0.85; 
+    let currentPuSize1 = powerUpBaseSize * pulse1 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    fill(255, 255, 0); noStroke(); beginShape(); 
+    for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize1; let y = sin(angle) * currentPuSize1; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize1 * 0.5; y = sin(angle) * currentPuSize1 * 0.5; vertex(x, y); } endShape(CLOSE);
+    pop();
+    text("Rapid Fire", column2X + labelOffsetX, examplesY + itemSize / 2);
+    examplesY += itemSize + 15;
+
+    // Extra Life
+    push();
+    translate(column2X, examplesY + itemSize / 2);
+    // Re-add pulsing calculation (different phase)
+    let pulse2 = sin(frameCount * 0.1 + PI / 2) * 0.15 + 0.85; 
+    let currentPuSize2 = powerUpBaseSize * pulse2 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    fill(0, 255, 0); noStroke(); beginShape(); 
+    for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize2; let y = sin(angle) * currentPuSize2; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize2 * 0.5; y = sin(angle) * currentPuSize2 * 0.5; vertex(x, y); } endShape(CLOSE);
+    pop();
+    text("Extra Life", column2X + labelOffsetX, examplesY + itemSize / 2);
+    examplesY += itemSize + 15;
+
+    // Nuke
+    push();
+    translate(column2X, examplesY + itemSize / 2);
+    // Re-add pulsing calculation (different phase)
+    let pulse3 = sin(frameCount * 0.1 + PI) * 0.15 + 0.85;
+    let currentPuSize3 = powerUpBaseSize * pulse3 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    fill(255, 0, 0); noStroke(); beginShape(); 
+    for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize3; let y = sin(angle) * currentPuSize3; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize3 * 0.5; y = sin(angle) * currentPuSize3 * 0.5; vertex(x, y); } endShape(CLOSE);
+    pop();
+    text("Nuke", column2X + labelOffsetX, examplesY + itemSize / 2);
+
+    // Determine end Y based on longest column + spacing
+    currentY = examplesY + itemSize + sectionSpacing;
+
+    // --- 4. Leaderboard ---
+    // Leaderboard takes care of its own title
+    drawLeaderboardToCanvas(width / 2, currentY);
+
+    // --- 5. Start Prompt ---
+    textSize(32);
+    textAlign(CENTER, CENTER);
+    fill(255);
+    text('Press SPACE to Start', width / 2, height * 0.95); // Position at very bottom
 }
 
 function drawGameOver() {
@@ -343,6 +469,30 @@ function checkCollisions() {
       }
     }
   }
+
+  // Player Projectiles vs Enemy Projectiles
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    // Ensure player projectile exists
+    if (!projectiles[i]) continue;
+
+    for (let j = enemyProjectiles.length - 1; j >= 0; j--) {
+      // Ensure enemy projectile exists
+      if (!enemyProjectiles[j]) continue;
+
+      // Check collision (using projectile's method)
+      if (projectiles[i].collidesWith(enemyProjectiles[j])) {
+        // Remove both projectiles
+        projectiles.splice(i, 1);
+        enemyProjectiles.splice(j, 1);
+
+        // Optional: Add a small particle effect for projectile collision
+        // particleSystems.push(new ParticleSystem(enemyProjectiles[j].pos.x, enemyProjectiles[j].pos.y, color(200, 200, 200), triggerShake));
+
+        // Break inner loop as player projectile is gone
+        break;
+      }
+    }
+  }
 }
 
 
@@ -353,12 +503,13 @@ function spawnEnemies() {
     wave++;
     lastSpawnTime = currentTime;
 
-    // Increase difficulty slightly over time
+    // Increase difficulty slightly over time (spawn interval)
     if (spawnInterval > 500) {
-        spawnInterval *= 0.98; // Decrease time between spawns
+        spawnInterval *= 0.99;
     }
 
-    let enemiesToSpawn = 1 + floor(wave / 5); // Spawn more enemies in later waves
+    // Spawn more enemies in later waves
+    let enemiesToSpawn = 1 + floor(wave / 7); // SLOWED DOWN: Changed from 5 to 7
     for (let i = 0; i < enemiesToSpawn; i++) {
         let x = random(50, width - 50);
         let y = random(-100, -50);
@@ -381,11 +532,22 @@ function spawnPowerUps() {
   if (currentTime > lastPowerUpSpawnTime + powerUpSpawnInterval) {
     lastPowerUpSpawnTime = currentTime;
 
+    // Determine which power-up type to spawn based on weights
+    let powerUpType;
+    let rand = random(1); // Get a random number between 0 and 1
+    if (rand < 0.10) { // DECREASED: 10% chance for Extra Life (was 0.20)
+        powerUpType = POWERUP_TYPES.EXTRA_LIFE;
+    } else if (rand < 0.30) { // ADJUSTED: 20% chance for Nuke (0.30 - 0.10 = 0.20)
+        powerUpType = POWERUP_TYPES.NUKE;
+    } else { // Remaining 70% chance for Rapid Fire
+        powerUpType = POWERUP_TYPES.RAPID_FIRE;
+    }
+
     // Create a power-up at a random x position near the top
     let x = random(50, width - 50);
     let y = random(-100, -50);
-    powerUps.push(new PowerUp(x, y));
-    console.log('Power-up spawned!'); // Optional: for debugging
+    powerUps.push(new PowerUp(x, y, powerUpType)); // Pass the selected type
+    console.log(`Power-up spawned: ${powerUpType}`);
   }
 }
 

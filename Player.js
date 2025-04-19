@@ -215,12 +215,41 @@ class Player {
   }
 
   activatePowerUp(type, durationSeconds) {
-    // Use duration from settings if not provided (or validate provided duration)
-    let duration = durationSeconds || GAME_SETTINGS.POWERUP_DURATION_S;
-    console.log(`Player activated ${type} power-up for ${duration} seconds`);
-    this.powerUpActive = true;
-    this.powerUpType = type;
-    // Calculate timer based on target FPS
-    this.powerUpTimer = duration * GAME_SETTINGS.FPS;
+    console.log(`Player activated ${type} power-up`);
+
+    switch (type) {
+      case POWERUP_TYPES.EXTRA_LIFE:
+        lives++; // Directly increment global lives variable
+        console.log("Extra life gained!");
+        // Optional: Add specific visual/audio feedback for extra life
+        break;
+
+      case POWERUP_TYPES.NUKE:
+        console.log("Nuke activated! Clearing screen...");
+        // Create explosions for all enemies being nuked
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          // Pass triggerShake from sketch.js if ParticleSystem needs it
+          particleSystems.push(new ParticleSystem(enemies[i].pos.x, enemies[i].pos.y, enemies[i].color, triggerShake));
+        }
+        // Clear enemy and enemy projectile arrays
+        enemies = [];
+        enemyProjectiles = [];
+        // Optional: Add a screen flash or bigger shake
+        triggerShake(30, 8); // Bigger shake for nuke
+        break;
+
+      case POWERUP_TYPES.RAPID_FIRE:
+        // Use duration from settings if not provided
+        let duration = durationSeconds || GAME_SETTINGS.POWERUP_DURATION_S;
+        this.powerUpActive = true;
+        this.powerUpType = type;
+        this.powerUpTimer = duration * GAME_SETTINGS.FPS;
+        console.log(`Rapid fire active for ${duration} seconds`);
+        break;
+
+      default:
+        console.warn(`Unknown power-up type activated: ${type}`);
+        break;
+    }
   }
 } 

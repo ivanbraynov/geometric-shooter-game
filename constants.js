@@ -7,7 +7,9 @@ const ENEMY_TYPES = {
 };
 
 const POWERUP_TYPES = {
-    RAPID_FIRE: 'rapid_fire'
+    RAPID_FIRE: 'rapid_fire',
+    EXTRA_LIFE: 'extra_life',
+    NUKE: 'nuke'
     // Add other types here later, e.g., SHIELD: 'shield'
 };
 
