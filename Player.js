@@ -26,34 +26,67 @@ class Player {
       this.powerUpTimer = 0;
   }
 
-  // Revised Input Handling - Using keyIsDown()
-  handleInput() { // No longer needs 'keys' argument
+  // Revised Input Handling - Using keyIsDown() and touch input
+  handleInput(touchIsActive, touchDelta) {
     this.thrusting = false;
     this.vel.set(0, 0); // Reset velocity at the start of each frame
 
-    let moveX = 0;
-    let moveY = 0;
+    // --- Touch Input --- 
+    if (touchIsActive) { // Prioritize touch if active (check based on initialTouchPos != null)
+        
+        // Use touchDelta to set velocity
+        // The magnitude of the delta controls speed, up to max speed
+        let desiredVel = createVector(touchDelta.x, touchDelta.y);
+        
+        // Optional: Add a dead zone - ignore very small movements
+        let deadZone = 5; 
+        if (desiredVel.magSq() < deadZone * deadZone) {
+            desiredVel.set(0, 0);
+        }
 
-    // Determine direction based on keyIsDown()
-    if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { // 65 = 'A'
-        moveX -= 1;
-    }
-    if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { // 68 = 'D'
-        moveX += 1;
-    }
-    if (keyIsDown(UP_ARROW) || keyIsDown(87)) { // 87 = 'W'
-        moveY -= 1;
-        this.thrusting = true;
-    }
-    if (keyIsDown(DOWN_ARROW) || keyIsDown(83)) { // 83 = 'S'
-        moveY += 1;
-    }
+        // Scale velocity based on delta magnitude, but cap at player speed
+        let scaleFactor = 0.1; // How strongly the drag distance affects speed
+        desiredVel.mult(scaleFactor);
+        desiredVel.limit(this.speed);
+        
+        this.vel.set(desiredVel);
 
-    // If any movement key is pressed, set velocity
-    if (moveX !== 0 || moveY !== 0) {
-        this.vel.set(moveX, moveY); // Set direction vector
-        // Normalize and scale to speed for consistent movement
-        this.vel.normalize().mult(this.speed);
+        // Set thrusting flag if moving upwards significantly
+        if (desiredVel.y < -this.speed * 0.3) { // Thrust if moving up
+             this.thrusting = true;
+        }
+        
+    } else {
+        // --- Keyboard Input (Fallback) ---
+        let moveX = 0;
+        let moveY = 0;
+
+        // Determine direction based on keyIsDown()
+        if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) { 
+            moveX -= 1;
+        }
+        if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) { 
+            moveX += 1;
+        }
+        if (keyIsDown(UP_ARROW) || keyIsDown(87)) { 
+            moveY -= 1;
+            this.thrusting = true;
+        }
+        if (keyIsDown(DOWN_ARROW) || keyIsDown(83)) { 
+            moveY += 1;
+        }
+
+        // If any movement key is pressed, set velocity
+        if (moveX !== 0 || moveY !== 0) {
+            let desiredVel = createVector(moveX, moveY);
+            desiredVel.normalize().mult(this.speed);
+            this.vel.set(desiredVel);
+        } else {
+            // If no movement keys, ensure thrusting is off
+            this.thrusting = false; 
+        }
+        // Note: Removed the automatic upward velocity from thrusting flag here
+        // as it's handled per input type now.
     }
   }
 

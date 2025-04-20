@@ -3,12 +3,14 @@ class CelestialBody {
     this.type = random(1) < 0.3 ? "sun" : "planet"; // 30% chance of sun
     this.size = this.type === "sun" ? random(80, 150) : random(40, 100);
 
-    // Calculate speed based on size (smaller moves slower)
-    const baseSpeed = this.type === "sun" ? map(this.size, 80, 150, 0.05, 0.15) : map(this.size, 40, 100, 0.1, 0.25);
+    // Calculate speed based on size (MUCH slower than before)
+    const baseSpeed = this.type === "sun" 
+                      ? map(this.size, 80, 150, 0.01, 0.05) 
+                      : map(this.size, 40, 100, 0.03, 0.08);
     this.speed = baseSpeed;
 
-    // Calculate opacity based on size (larger is more opaque)
-    this.opacity = map(this.size, 40, 150, 100, 255); // Min size planet to max size sun range
+    // Calculate opacity based on size (MUCH dimmer/more transparent than before)
+    this.opacity = map(this.size, 40, 150, 20, 80); // Max opacity significantly reduced
 
     // Set initial position
     // If yPosition is null, place it randomly above the screen, otherwise use the provided yPosition.

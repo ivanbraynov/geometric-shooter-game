@@ -26,6 +26,13 @@ let spawnInterval = 2000; // milliseconds (for enemies)
 let lastPowerUpSpawnTime = 0;
 let powerUpSpawnInterval = 15000; // milliseconds (e.g., every 15 seconds)
 
+// --- Mobile Controls State ---
+let isAutoShotEnabled = false;
+let autoShotButton = { x: 0, y: 0, size: 50, margin: 20 }; // Button properties
+// ---------------------------
+
+let sunImage;
+
 // -------- Setup --------
 function setup() {
   createCanvas(windowWidth, windowHeight);
@@ -121,10 +128,16 @@ function draw() {
 // -------- Game State Functions --------
 function runGame() {
   // Player Logic
-  player.handleInput();
+  player.handleInput(initialTouchPos !== null, touchDelta);
   player.update();
   player.display();
   player.keepInBounds();
+
+  // --- Auto-Shooting --- 
+  if (isAutoShotEnabled) {
+    player.shoot(); // Attempt to shoot (respects cooldown)
+  }
+  // ---------------------
 
   // Projectile Logic (Player)
   for (let i = projectiles.length - 1; i >= 0; i--) {
@@ -356,11 +369,134 @@ function drawHUD() {
       pop();
   }
   // text(`Lives: ${lives}`, width - 20, 20); // Alternative text lives
+
+  // --- Draw Auto-Shot Button --- 
+  autoShotButton.x = width - autoShotButton.margin - autoShotButton.size / 2;
+  autoShotButton.y = height - autoShotButton.margin - autoShotButton.size / 2;
+  
+  push();
+  translate(autoShotButton.x, autoShotButton.y);
+  stroke(255); // White outline
+  strokeWeight(2);
+  if (isAutoShotEnabled) {
+    fill(0, 200, 0, 150); // Greenish when active
+  } else {
+    fill(200, 0, 0, 150); // Reddish when inactive
+  }
+  ellipse(0, 0, autoShotButton.size, autoShotButton.size);
+  
+  // Draw text indicator inside button
+  noStroke();
+  fill(255);
+  textSize(12);
+  textAlign(CENTER, CENTER);
+  text(isAutoShotEnabled ? "AUTO" : "AUTO-FIRE", 0, 0);
+  pop();
+  // ---------------------------
+
   textAlign(CENTER, CENTER); // Reset alignment
+  textSize(20); // Reset text size just in case
 }
 
 
 // -------- Input Handling --------
+
+// --- Touch State Variables ---
+let currentTouchX = null;
+let currentTouchY = null;
+let initialTouchPos = null; // Store starting position for drag
+let touchDelta = { x: 0, y: 0 }; // Store drag difference
+let isTouchingLeft = false;
+let isTouchingRight = false;
+// ---------------------------
+
+function touchStarted(event) { // Add event parameter
+  // Check if the touch target is the canvas
+  let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
+
+  // Only handle the first touch point
+  if (touches.length > 0) {
+    let touch = touches[0];
+    currentTouchX = touch.x;
+    currentTouchY = touch.y;
+    initialTouchPos = { x: currentTouchX, y: currentTouchY }; // Record start
+    touchDelta = { x: 0, y: 0 }; // Reset delta
+
+    // --- Check for Auto-Shot Button Tap (only if touch is on canvas) ---
+    if (isCanvas) {
+        let d = dist(currentTouchX, currentTouchY, autoShotButton.x, autoShotButton.y);
+        if (d < autoShotButton.size / 2) {
+          // Tapped the button
+          isAutoShotEnabled = !isAutoShotEnabled; // Toggle state
+          isTouchingLeft = false; 
+          isTouchingRight = false; 
+          initialTouchPos = null; // Don't track drag if button tapped
+        } else {
+          // --- Tap elsewhere on canvas ---
+          // Determine initial touch side
+          if (currentTouchX < width / 2) {
+              isTouchingLeft = true;
+              isTouchingRight = false; 
+          } else {
+              isTouchingRight = true; 
+              isTouchingLeft = false;
+          }
+        }
+    }
+    
+    // Game state specific actions for taps (can happen on or off canvas for start/restart)
+    if (gameState === 'GAME_OVER') {
+        // Only restart if the score form is NOT visible
+        if (scoreFormDiv && scoreFormDiv.style('display') === 'none') {
+           resetGame();
+           gameState = 'PLAYING';
+        }
+      } else if (gameState === 'START_MENU') {
+        resetGame();
+        gameState = 'PLAYING';
+    }
+  }
+  
+  // Prevent default only if touch was on the canvas
+  return !isCanvas;
+}
+
+function touchMoved(event) { // Add event parameter
+  // Check if the touch target is the canvas
+  let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
+
+  // Update position and delta if currently touching and dragging started (on canvas)
+  if (touches.length > 0 && initialTouchPos && isCanvas) { 
+    let touch = touches[0];
+    currentTouchX = touch.x;
+    currentTouchY = touch.y;
+
+    // Calculate delta from initial touch position
+    touchDelta.x = currentTouchX - initialTouchPos.x;
+    touchDelta.y = currentTouchY - initialTouchPos.y;
+  }
+  
+  // Prevent default only if touch was on the canvas
+  return !isCanvas;
+}
+
+function touchEnded(event) { // Add event parameter
+   // Check if the touch target is the canvas
+  let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
+
+  // Reset touch state regardless of where touch ended
+  currentTouchX = null;
+  currentTouchY = null;
+  initialTouchPos = null; // Clear initial position
+  touchDelta = { x: 0, y: 0 }; // Reset delta
+  isTouchingLeft = false;
+  isTouchingRight = false; 
+  // isAutoShotEnabled state persists
+  
+  // Prevent default only if touch was on the canvas
+  return !isCanvas;
+}
+
 function keyPressed() {
   // Player Shooting & State Transitions (using direct key check)
   if (key === ' ' || keyCode === 32) { // Check Space bar directly
