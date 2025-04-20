@@ -4,6 +4,7 @@ let finalScoreDisplay;
 let usernameInput;
 let submitScoreButton;
 let scoreFeedback;
+let startMenuButton;
 
 // -------- Score Form Handling --------
 function initializeUI() {
@@ -13,14 +14,28 @@ function initializeUI() {
     usernameInput = select('#username-input');
     submitScoreButton = select('#submit-score-button');
     scoreFeedback = select('#score-feedback');
+    startMenuButton = select('#start-menu-button');
 
     if (!submitScoreButton) {
         console.error("Submit score button not found during UI initialization!");
-        return;
+        // return; // Keep going even if one button fails?
+    }
+    if (!startMenuButton) {
+        console.error("Start Menu button not found during UI initialization!");
+        // return;
     }
 
     // Add event listener for score submission
-    submitScoreButton.mousePressed(handleScoreSubmit);
+    if (submitScoreButton) {
+        submitScoreButton.mousePressed(handleScoreSubmit);
+    }
+    
+    // Add event listener for Start Menu button
+    if (startMenuButton) {
+        startMenuButton.mousePressed(() => {
+            window.location.reload(); // Reload the page
+        });
+    }
 
     // Ensure form is hidden initially
     if(scoreFormDiv) scoreFormDiv.hide();

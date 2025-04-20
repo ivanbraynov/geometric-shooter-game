@@ -216,11 +216,13 @@ function drawStartMenu() {
 
     textSize(textSizeLarge);
     textAlign(CENTER, TOP);
-    text('Move: Arrow Keys or WASD', width / 2, currentY);
+    // Updated Instructions
+    text('Move: Arrows; WASD; Touch', width / 2, currentY);
     currentY += textSizeLarge + 5;
-    text('Shoot: SPACE Bar', width / 2, currentY);
+    text('Shoot: SPACE Bar; AUTO-FIRE on mobile', width / 2, currentY);
     currentY += textSizeLarge + 5;
-    text('Start/Restart: SPACE Bar', width / 2, currentY);
+    text('Start/Restart: SPACE Bar; Touch', width / 2, currentY);
+    // End Updated Instructions
     currentY += textSizeLarge + sectionSpacing;
 
     // --- 3. Item Examples ---
