@@ -63,18 +63,16 @@ function setup() {
 
   // --- Create Auto-Shot HTML Button ---
   autoShotHtmlButton = createButton('AUTO-FIRE');
-  autoShotHtmlButton.id('auto-shot-button'); // Assign an ID for CSS styling
-  autoShotHtmlButton.position(width - 80, height - 60); // Initial position (can be refined with CSS)
+  autoShotHtmlButton.id('auto-shot-button');
+  autoShotHtmlButton.position(width - 80, height - 60);
   
   // Function to toggle state and update button appearance
   const toggleAutoShot = () => {
       isAutoShotEnabled = !isAutoShotEnabled;
       if (isAutoShotEnabled) {
-          autoShotHtmlButton.html('AUTO');
-          autoShotHtmlButton.addClass('active'); // Add class for CSS styling
+          autoShotHtmlButton.addClass('active');
       } else {
-          autoShotHtmlButton.html('AUTO-FIRE');
-          autoShotHtmlButton.removeClass('active'); // Remove class
+          autoShotHtmlButton.removeClass('active');
       }
   };
   
@@ -428,13 +426,13 @@ function drawHUD() {
   }
   // ------------------------------
 
-  // Display Power-up Timer if active
+  // Display Power-up Timer if active (Keep this on canvas for now? Or convert too?)
   if (player && player.powerUpActive) {
     let remainingSeconds = ceil(player.powerUpTimer / 60);
     fill(255, 255, 0); // Yellow for timer text
-    textSize(18);
+    textSize(18); 
     textAlign(CENTER, TOP);
-    text(`${player.powerUpType.replace('_', ' ').toUpperCase()} ACTIVE: ${remainingSeconds}s`, width / 2, 15);
+    text(`${player.powerUpType.replace('_', ' ').toUpperCase()} ACTIVE: ${remainingSeconds}s`, width / 2, 40); // Increased Y from 15 to 40
     fill(255); // Reset fill color
     textSize(20); // Reset text size
   }
