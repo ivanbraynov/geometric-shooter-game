@@ -2,6 +2,17 @@
 let leaderboardScores = []; // To store fetched scores
 let leaderboardError = null; // To store fetch error message
 
+// -------- HTML Escaping Helper --------
+function escapeHtml(unsafe) {
+    if (unsafe === null || unsafe === undefined) return '';
+    // Create a temporary element, set its text content (which auto-escapes), 
+    // then retrieve the escaped innerHTML.
+    const div = document.createElement('div');
+    div.textContent = unsafe;
+    return div.innerHTML;
+}
+// ------------------------------------
+
 // -------- Leaderboard Handling --------
 async function displayLeaderboard() {
     // Use the global supabaseClient defined in db-setup.js
@@ -71,9 +82,12 @@ function populateLeaderboardHtml() {
                 console.error("Error formatting date:", entry.created_at, e);
             }
             
+            // Escape the username before inserting into HTML
+            const safeUsername = escapeHtml(entry.username || '-');
+
             leaderboardHtml += `<tr>
                                     <td>${rank}</td>
-                                    <td>${entry.username || '-'}</td>
+                                    <td>${safeUsername}</td>
                                     <td>${entry.score || 0}</td>
                                     <td>${formattedDateTime}</td>
                                  </tr>`;
