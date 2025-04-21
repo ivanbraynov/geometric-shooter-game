@@ -92,11 +92,12 @@ async function handleScoreSubmit() {
         console.error("displayLeaderboard function not found!");
     }
 
-
+    // Hide form and return to start menu after a delay
     setTimeout(() => {
         if(scoreFormDiv) scoreFormDiv.hide();
-        // Leaderboard will be drawn automatically in drawGameOver now
-    }, 1500);
+        // Leaderboard is part of the start menu, so switch state
+        gameState = 'START_MENU'; 
+    }, 1500); // Keep 1.5 second delay
 
   } catch (error) {
     console.error('Error submitting score:', error.message);

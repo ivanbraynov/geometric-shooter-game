@@ -1,0 +1,314 @@
+body {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    /* Ensure canvas is behind other elements if needed */
+    /* background-color: #0a0a1e; */
+}
+
+canvas {
+    display: block; /* Prevent extra space below canvas */
+    position: absolute; /* Allow positioning other elements on top */
+    top: 0;
+    left: 0;
+    z-index: -1; /* Keep canvas behind other elements */
+}
+
+/* Score Submission Form Styling */
+#score-form {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(200, 200, 200, 0.9);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    font-family: monospace;
+    color: #333;
+    z-index: 10; /* Ensure form is above canvas */
+}
+
+#score-form h3 {
+    margin-top: 0;
+    color: #000;
+}
+
+#score-form label {
+    color: #000;
+}
+
+#score-form input[type="text"] {
+    padding: 8px;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+
+#score-form button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #444;
+    color: white;
+    font-family: monospace;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#score-form button:hover {
+    background-color: #666;
+}
+
+#score-form button:disabled {
+    background-color: #999;
+    cursor: not-allowed;
+}
+
+#score-feedback {
+    margin-top: 10px;
+    color: green;
+    font-weight: bold;
+}
+
+/* HUD HTML Elements Styling */
+#hud-score,
+#hud-lives {
+    position: absolute;
+    color: white;
+    font-family: monospace;
+    font-size: 20px;
+    margin: 0; /* Remove default paragraph margins */
+    padding: 15px; /* Add some padding */
+    z-index: 5; /* Ensure HUD is above canvas but potentially below menus/forms */
+    pointer-events: none; /* Prevent interfering with mouse/touch input on canvas */
+}
+
+#hud-score {
+    top: 0;
+    left: 0;
+}
+
+#hud-lives {
+    top: 0;
+    right: 0;
+    text-align: right; /* Align text to the right */
+}
+
+/* Auto-Shot HTML Button Styling */
+#auto-shot-button {
+    position: absolute; /* Position relative to the viewport */
+    bottom: 20px;       /* Distance from bottom */
+    right: 20px;        /* Distance from right */
+    width: 70px;        /* Button width */
+    height: 70px;       /* Button height */
+    border-radius: 50%; /* Make it circular */
+    background-color: rgba(200, 0, 0, 0.7); /* Reddish semi-transparent */
+    border: 2px solid white;
+    color: white;
+    font-family: monospace;
+    font-size: 14px;    /* Adjust as needed */
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;      /* Use flexbox for centering */
+    justify-content: center; /* Center text horizontally */
+    align-items: center;    /* Center text vertically */
+    z-index: 5;         /* Ensure it's above canvas */
+    transition: background-color 0.2s; /* Smooth transition */
+}
+
+#auto-shot-button:hover {
+    background-color: rgba(220, 50, 50, 0.8); /* Slightly lighter red on hover */
+}
+
+#auto-shot-button.active {
+    background-color: rgb(0, 200, 0); /* Solid Green when active */
+}
+
+#auto-shot-button.active:hover {
+    background-color: rgb(50, 220, 50); /* Slightly lighter solid green on hover */
+}
+
+/* Optional: Media Query for smaller screens */
+@media (max-width: 600px) {
+    #auto-shot-button {
+        width: 60px;
+        height: 60px;
+        font-size: 12px;
+        bottom: 15px;
+        right: 15px;
+    }
+
+    #hud-score,
+    #hud-lives {
+        font-size: 16px; /* Smaller font size for HUD on mobile */
+        padding: 10px;
+    }
+}
+
+/* --- Start Menu Styling --- */
+#start-menu-container {
+    position: absolute;
+    top: 0; left: 0; 
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center; 
+    padding-top: 5vh; 
+    color: white;
+    font-family: monospace;
+    z-index: 8; 
+    pointer-events: none; 
+    background-color: transparent; 
+    text-align: center;
+}
+
+/* Allow interaction with specific menu elements if needed */
+#start-menu-container h1,
+#start-menu-container p,
+#start-menu-container div {
+    pointer-events: auto; /* Re-enable pointer events for text elements */
+}
+
+#menu-title {
+    font-size: 4em; 
+    margin-bottom: 0.5em; /* Reduced margin */
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+#menu-instructions-heading {
+    font-size: 1.8em;
+    margin-top: 1em; /* Adjusted margin */
+    margin-bottom: 0.3em; /* Reduced margin */
+    font-weight: bold;
+}
+
+.menu-instruction {
+    font-size: 1.2em;
+    margin: 0.1em 0; /* Reduced margin */
+}
+
+#menu-items-heading {
+    font-size: 1.8em;
+    margin-top: 1.5em; /* More space before Items */
+    margin-bottom: 0; /* Remove bottom margin */
+    font-weight: bold;
+}
+
+/* Placeholder where canvas items are drawn */
+#menu-items-placeholder {
+    min-height: 200px; /* << Increased placeholder height significantly */
+    width: 100%; 
+    margin-top: 0.5em; 
+    margin-bottom: 0.5em; 
+}
+
+#menu-leaderboard-container {
+    margin-top: 0; 
+    max-width: 600px; /* << Re-add max-width */
+    /* Center the container itself within the flex parent */
+    margin-left: auto;
+    margin-right: auto; 
+    width: 80%; /* Set a width less than 100% */
+
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.3); 
+    padding: 10px;
+    border-radius: 8px;
+}
+
+#menu-leaderboard-container h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.5em;
+}
+
+#menu-leaderboard-container table {
+    width: 100%; /* Table takes full width of container */
+    border-collapse: collapse;
+    font-size: 1em;
+    /* margin: 0 auto; */ /* No longer needed here, container handles centering */
+}
+
+#menu-leaderboard-container th,
+#menu-leaderboard-container td {
+    padding: 5px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+    /* text-align: center; */ /* REMOVE universal center */
+}
+
+/* Restore specific alignment rules */
+#menu-leaderboard-container th {
+    text-align: center; /* Keep headers centered for now */
+}
+#menu-leaderboard-container th:nth-child(1),
+#menu-leaderboard-container th:nth-child(3)
+{
+    text-align: right; 
+    padding-right: 15px; 
+}
+
+#menu-leaderboard-container td:nth-child(1),
+#menu-leaderboard-container td:nth-child(3)
+{
+    text-align: right;
+    padding-right: 15px; 
+}
+
+#menu-leaderboard-container td:nth-child(2),
+#menu-leaderboard-container td:nth-child(4)
+{
+    text-align: left; /* << Set Username/Date to left */
+}
+
+#menu-leaderboard-container .error {
+    color: #ffaaaa;
+}
+
+#menu-start-prompt {
+    margin-top: 1em; /* Reduced margin */
+    font-size: 1.5em;
+    font-weight: bold;
+    /* Removed absolute positioning, let it flow */
+    /* position: absolute; */ 
+    /* bottom: 5vh; */
+}
+
+/* --- End Start Menu Styling --- */
+
+/* Optional: Media Query for smaller screens */
+@media (max-width: 768px) { 
+    #menu-title { font-size: 3em; margin-bottom: 0.4em; }
+    #menu-instructions-heading { font-size: 1.5em; margin-top: 0.8em; }
+    .menu-instruction { font-size: 1em; }
+    #menu-items-heading { font-size: 1.5em; margin-top: 1.2em; }
+    #menu-items-placeholder { min-height: 180px; } /* Adjust in media query */
+    #menu-leaderboard-container { width: 90%; font-size: 0.9em; }
+    #menu-start-prompt { font-size: 1.2em; margin-top: 0.8em; }
+}
+
+@media (max-width: 600px) {
+    #auto-shot-button {
+        width: 60px;
+        height: 60px;
+        font-size: 12px;
+        bottom: 15px;
+        right: 15px;
+    }
+
+    #hud-score,
+    #hud-lives {
+        font-size: 16px; /* Smaller font size for HUD on mobile */
+        padding: 10px;
+    }
+    
+    /* Further reduce menu sizes on very small screens */
+    #menu-title { font-size: 2.5em; margin-bottom: 0.3em; }
+    #menu-instructions-heading, #menu-items-heading { font-size: 1.3em; margin-top: 0.6em; }
+    .menu-instruction { font-size: 0.9em; }
+    #menu-items-placeholder { min-height: 150px; } /* Adjust in media query */
+    #menu-leaderboard-container { width: 95%; font-size: 0.8em; }
+    #menu-start-prompt { font-size: 1em; margin-top: 0.6em; }
+} 

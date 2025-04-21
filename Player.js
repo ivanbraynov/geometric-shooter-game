@@ -111,6 +111,7 @@ class Player {
   }
 
   display() {
+    console.log(`Player.display - Pos: (${this.pos.x.toFixed(1)}, ${this.pos.y.toFixed(1)}), Size: ${this.size}`);
     push();
     translate(this.pos.x, this.pos.y);
 

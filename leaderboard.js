@@ -8,6 +8,7 @@ async function displayLeaderboard() {
     if (!supabaseClient) {
         leaderboardError = "Leaderboard service unavailable.";
         console.warn(leaderboardError);
+        populateLeaderboardHtml(); // Update HTML even if service unavailable
         return;
     }
 
@@ -32,53 +33,53 @@ async function displayLeaderboard() {
         leaderboardError = `Error loading scores: ${error.message}`;
         leaderboardScores = []; // Clear scores on error
     }
-    // No drawing here, drawing happens in drawLeaderboardToCanvas
+    
+    // Update the HTML leaderboard display
+    populateLeaderboardHtml();
 }
 
-// Function to draw the leaderboard onto the canvas
-function drawLeaderboardToCanvas(x, y) {
-    push(); // Isolate text settings
-    fill(255);
-    textSize(20);
-    textAlign(CENTER, TOP);
-    text("--- Leaderboard --- ", x, y);
+// // Function to draw the leaderboard onto the canvas (REMOVED)
+// function drawLeaderboardToCanvas(x, y) {
+//    ...
+// }
+
+// NEW Function to populate the leaderboard HTML container
+function populateLeaderboardHtml() {
+    // Needs access to the global `leaderboardContainerElement` from sketch.js
+    if (!leaderboardContainerElement) return; // Exit if the container isn't created yet
+
+    let leaderboardHtml = '<h3>--- Leaderboard ---</h3>'; // Add title
 
     if (leaderboardError) {
-        fill(255, 100, 100); // Red for error message
-        textSize(16);
-        text(leaderboardError, x, y + 30);
+        leaderboardHtml += `<p class="error">${leaderboardError}</p>`;
     } else if (leaderboardScores.length === 0) {
-        textSize(16);
-        text("No scores yet!", x, y + 30);
+        leaderboardHtml += '<p>No scores yet!</p>';
     } else {
-        textSize(18);
-        textAlign(CENTER, TOP); // Center alignment for the whole line
-        const startY = y + 35;
-        const lineHeight = 22;
-
-        for (let i = 0; i < leaderboardScores.length; i++) {
-            const currentY = startY + i * lineHeight;
+        // Create an HTML table for scores
+        leaderboardHtml += '<table><thead><tr><th>Rank</th><th>Username</th><th>Score</th><th>Date</th></tr></thead><tbody>';
+        leaderboardScores.forEach((entry, i) => {
             const rank = i + 1;
-            const entry = leaderboardScores[i];
-            let formattedDateTime = "";
-
-            // Format the timestamp
+            let formattedDateTime = "-";
             try {
-                const date = new Date(entry.created_at);
-                const dateString = date.toLocaleDateString();
-                const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                formattedDateTime = `${dateString} ${timeString}`;
-            } catch (e) {
-                formattedDateTime = "-invalid date-";
+                if (entry.created_at) {
+                    const date = new Date(entry.created_at);
+                    // Simplified date/time format
+                    formattedDateTime = `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                }
+            } catch (e) { 
+                formattedDateTime = "invalid date";
                 console.error("Error formatting date:", entry.created_at, e);
             }
-
-            // Construct the single line string
-            const scoreText = `${rank}. ${entry.username} - ${entry.score} - ${formattedDateTime}`;
-
-            // Draw the centered text
-            text(scoreText, x, currentY);
-        }
+            
+            leaderboardHtml += `<tr>
+                                    <td>${rank}</td>
+                                    <td>${entry.username || '-'}</td>
+                                    <td>${entry.score || 0}</td>
+                                    <td>${formattedDateTime}</td>
+                                 </tr>`;
+        });
+        leaderboardHtml += '</tbody></table>';
     }
-    pop(); // Restore previous text settings
+
+    leaderboardContainerElement.html(leaderboardHtml); // Set the innerHTML of the container
 } 

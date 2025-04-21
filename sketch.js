@@ -28,8 +28,27 @@ let powerUpSpawnInterval = 15000; // milliseconds (e.g., every 15 seconds)
 
 // --- Mobile Controls State ---
 let isAutoShotEnabled = false;
-let autoShotButton = { x: 0, y: 0, size: 50, margin: 20 }; // Button properties
+// let autoShotButton = { x: 0, y: 0, size: 50, margin: 20 }; // Removed - Replaced by HTML button
+let autoShotHtmlButton; // Reference to the HTML button
 // ---------------------------
+
+// --- HUD HTML Elements ---
+let hudScoreElement;
+let hudLivesElement;
+// -----------------------
+
+// --- Start Menu HTML Elements ---
+let startMenuContainer;
+let titleElement;
+let instructionsHeadingElement;
+let instructionsMoveElement;
+let instructionsShootElement;
+let instructionsStartElement;
+let itemsHeadingElement;
+let itemsCanvasPlaceholder; // <<< Make this global
+let leaderboardContainerElement; // Div to hold leaderboard table/content
+let startPromptElement;
+// -----------------------------
 
 let sunImage;
 
@@ -41,6 +60,78 @@ function setup() {
   textAlign(CENTER, CENTER);
   textSize(18);
   textFont('monospace'); // Consistent look
+
+  // --- Create Auto-Shot HTML Button ---
+  autoShotHtmlButton = createButton('AUTO-FIRE');
+  autoShotHtmlButton.id('auto-shot-button'); // Assign an ID for CSS styling
+  autoShotHtmlButton.position(width - 80, height - 60); // Initial position (can be refined with CSS)
+  
+  // Function to toggle state and update button appearance
+  const toggleAutoShot = () => {
+      isAutoShotEnabled = !isAutoShotEnabled;
+      if (isAutoShotEnabled) {
+          autoShotHtmlButton.html('AUTO');
+          autoShotHtmlButton.addClass('active'); // Add class for CSS styling
+      } else {
+          autoShotHtmlButton.html('AUTO-FIRE');
+          autoShotHtmlButton.removeClass('active'); // Remove class
+      }
+  };
+  
+  autoShotHtmlButton.mousePressed(toggleAutoShot);
+  // -----------------------------------
+
+  // --- Create HUD HTML Elements ---
+  hudScoreElement = createP('Score: 0');
+  hudScoreElement.id('hud-score');
+  // Position will be handled by CSS
+
+  hudLivesElement = createP('Lives: 3'); 
+  hudLivesElement.id('hud-lives');
+  // Position will be handled by CSS
+  // -------------------------------
+
+  // --- Create Start Menu HTML Elements (using createElement) ---
+  startMenuContainer = select('#start-menu-container');
+  if (!startMenuContainer) console.error("Start menu container not found!");
+
+  titleElement = createElement('h1', 'Geometric Shooter'); // Use createElement
+  titleElement.parent(startMenuContainer);
+  titleElement.id('menu-title');
+  
+  instructionsHeadingElement = createElement('p', 'How to Play'); // Use createElement
+  instructionsHeadingElement.parent(startMenuContainer);
+  instructionsHeadingElement.id('menu-instructions-heading');
+  
+  instructionsMoveElement = createElement('p', 'Move: Arrows; WASD; Touch'); // Use createElement
+  instructionsMoveElement.parent(startMenuContainer);
+  instructionsMoveElement.addClass('menu-instruction'); // Use class for common style
+
+  instructionsShootElement = createElement('p', 'Shoot: SPACE Bar; AUTO-FIRE on mobile'); // Use createElement
+  instructionsShootElement.parent(startMenuContainer);
+  instructionsShootElement.addClass('menu-instruction');
+  
+  instructionsStartElement = createElement('p', 'Start/Restart: SPACE Bar; Touch'); // Use createElement
+  instructionsStartElement.parent(startMenuContainer);
+  instructionsStartElement.addClass('menu-instruction');
+
+  itemsHeadingElement = createElement('p', 'Items');
+  itemsHeadingElement.parent(startMenuContainer);
+  itemsHeadingElement.id('menu-items-heading');
+  
+  // Store reference globally
+  itemsCanvasPlaceholder = createDiv(''); 
+  itemsCanvasPlaceholder.parent(startMenuContainer);
+  itemsCanvasPlaceholder.id('menu-items-placeholder'); 
+  
+  leaderboardContainerElement = createDiv('');
+  leaderboardContainerElement.parent(startMenuContainer);
+  leaderboardContainerElement.id('menu-leaderboard-container');
+  
+  startPromptElement = createElement('p', 'Press SPACE to Start / Touch Screen'); // Use createElement
+  startPromptElement.parent(startMenuContainer);
+  startPromptElement.id('menu-start-prompt');
+  // ---------------------------------------
 
   // Initialize Player
   player = new Player(width / 2, height - 50);
@@ -99,17 +190,24 @@ function draw() {
   }
 
   // Game State Logic
-  switch (gameState) {
-    case 'START_MENU':
-      drawStartMenu();
-      break;
-    case 'PLAYING':
-      runGame();
-      break;
-    case 'GAME_OVER':
-      drawGameOver();
-      break;
+  if (startMenuContainer) {
+      if (gameState === 'START_MENU') {
+          startMenuContainer.show();
+          // Draw animated item examples on canvas BEHIND the HTML menu
+          drawItemExamples(); 
+      } else {
+          startMenuContainer.hide();
+      }
   }
+
+  // --- Call appropriate function based on game state --- 
+  if (gameState === 'PLAYING') {
+    runGame();
+  } else if (gameState === 'GAME_OVER') {
+    drawGameOver(); // Keep drawing canvas elements for Game Over for now
+  }
+  // Note: START_MENU logic (showing container, drawing items) is handled above
+  // -----------------------------------------------------
 
   // Update and Draw Particle Systems (Explosions)
   for (let i = particleSystems.length - 1; i >= 0; i--) {
@@ -127,6 +225,7 @@ function draw() {
 
 // -------- Game State Functions --------
 function runGame() {
+  console.log(`runGame - Frame: ${frameCount}`);
   // Player Logic
   player.handleInput(initialTouchPos !== null, touchDelta);
   player.update();
@@ -194,155 +293,140 @@ function runGame() {
 }
 
 function drawStartMenu() {
-    const titleSize = 64;
-    const headingSize = 28;
-    const textSizeLarge = 20;
-    const textSizeSmall = 16;
-    const sectionSpacing = 80; // Vertical space between sections
-    let currentY = height * 0.1;
+    // --- Remove canvas text drawing for elements moved to HTML ---
+    // Removed Title, Instructions, Leaderboard call, Start Prompt
 
-    // --- 1. Game Title ---
-    fill(255);
-    textSize(titleSize);
-    textAlign(CENTER, TOP);
-    text('Geometric Shooter', width / 2, currentY);
-    currentY += titleSize + sectionSpacing * 0.8;
+    // --- Keep Item Example Drawing --- 
+    // This function is now only called from draw() when gameState is START_MENU
+    // to draw the items BEHIND the HTML container.
+    // We need to extract the item drawing logic into its own function.
 
-    // --- 2. Instructions ---
-    textSize(headingSize);
-    textAlign(CENTER, TOP);
-    text('How to Play', width / 2, currentY);
-    currentY += headingSize + 15;
+    // Extracted logic below, this function can be removed or repurposed
+}
 
-    textSize(textSizeLarge);
-    textAlign(CENTER, TOP);
-    // Updated Instructions
-    text('Move: Arrows; WASD; Touch', width / 2, currentY);
-    currentY += textSizeLarge + 5;
-    text('Shoot: SPACE Bar; AUTO-FIRE on mobile', width / 2, currentY);
-    currentY += textSizeLarge + 5;
-    text('Start/Restart: SPACE Bar; Touch', width / 2, currentY);
-    // End Updated Instructions
-    currentY += textSizeLarge + sectionSpacing;
-
-    // --- 3. Item Examples ---
-    textSize(headingSize);
-    textAlign(CENTER, TOP);
-    text('Items', width / 2, currentY);
-    currentY += headingSize + 15;
-
-    const itemSize = 20;
-    const labelOffsetX = 25;
-    const column1X = width * 0.4; // Adjusted column positions slightly
+// NEW function to draw only the item examples
+function drawItemExamples() {
+    // Need access to constants/sizes if not global
+    const itemSize = 20; 
+    const labelOffsetX = 25; // Re-introduce offset for labels
+    const itemTextSize = 12; // Smaller text size for labels
+    const column1X = width * 0.4;
     const column2X = width * 0.6;
-    let examplesY = currentY;
+    
+    // --- Calculate Y position based on placeholder --- 
+    let examplesY = height * 0.5; // Default fallback Y
+    if (itemsCanvasPlaceholder) {
+        let placeholderY = itemsCanvasPlaceholder.position().y;
+        let placeholderH = itemsCanvasPlaceholder.size().height;
+        // Start drawing slightly below the placeholder's top, 
+        // assuming placeholder CSS gives enough height
+        examplesY = placeholderY + itemSize; // Adjust padding as needed
+        // Optional: Center vertically within placeholder? 
+        // examplesY = placeholderY + placeholderH / 2 - (itemSize * 1.5); // Rough vertical center
+    }
+    // -------------------------------------------------
 
+    push(); // Isolate transformations and styles
+    fill(255); // Default fill for text
+    textSize(itemTextSize);
+    textAlign(LEFT, CENTER); // Set alignment for text labels
+    
     // Enemies Column
-    textSize(textSizeSmall);
-    textAlign(LEFT, CENTER);
     // Drone
-    let bobOffset1 = sin(frameCount * 0.05) * 3; // Calculate bobbing offset
+    let bobOffset1 = sin(frameCount * 0.05) * 3; 
     push(); translate(column1X, examplesY + itemSize / 2 + bobOffset1); scale(itemSize / 25);
     fill(150, 150, 150); stroke(255); strokeWeight(1.5); rect(0, 0, 25, 25, 3);
     fill(75, 75, 75, 180); noStroke(); rect(0, 0, 25 * 0.6, 25 * 0.6, 2);
     pop();
-    text("Drone", column1X + labelOffsetX, examplesY + itemSize / 2);
-    examplesY += itemSize + 15;
+    fill(255); // Ensure text is white
+    text("Drone", column1X + labelOffsetX, examplesY + itemSize / 2); // Uncommented text
+    let currentY1 = examplesY + itemSize + 15;
     // Scout
-    let bobOffset2 = sin(frameCount * 0.06 + 1) * 3; // Different speed/phase
-    push(); translate(column1X, examplesY + itemSize / 2 + bobOffset2); scale(itemSize / 20);
+    let bobOffset2 = sin(frameCount * 0.06 + 1) * 3;
+    push(); translate(column1X, currentY1 + itemSize / 2 + bobOffset2); scale(itemSize / 20);
     fill(200, 100, 255); stroke(255); strokeWeight(1.5); triangle(0, -20 / 1.5, -10, 10, 10, 10);
     fill(255, 255, 0); noStroke(); ellipse(0, 2, 6, 6);
     pop();
-    text("Scout", column1X + labelOffsetX, examplesY + itemSize / 2);
-    examplesY += itemSize + 15;
+    fill(255); // Ensure text is white
+    text("Scout", column1X + labelOffsetX, currentY1 + itemSize / 2); // Uncommented text
+    let currentY2 = currentY1 + itemSize + 15;
     // Heavy
-    let bobOffset3 = sin(frameCount * 0.04 + 2) * 3; // Different speed/phase
-    push(); translate(column1X, examplesY + itemSize / 2 + bobOffset3); scale(itemSize / 40);
+    let bobOffset3 = sin(frameCount * 0.04 + 2) * 3; 
+    push(); translate(column1X, currentY2 + itemSize / 2 + bobOffset3); scale(itemSize / 40);
     fill(50, 100, 200); stroke(255); strokeWeight(1.5); rect(0, 0, 40, 32, 5);
     fill(35, 70, 140); stroke(200); strokeWeight(1); rect(-12, 16, 8, 16); rect(12, 16, 8, 16);
     pop();
-    text("Heavy", column1X + labelOffsetX, examplesY + itemSize / 2);
+    fill(255); // Ensure text is white
+    text("Heavy", column1X + labelOffsetX, currentY2 + itemSize / 2); // Uncommented text
 
     // Power-ups Column
-    examplesY = currentY; // Reset Y for second column
-    textSize(textSizeSmall);
-    textAlign(LEFT, CENTER);
-    const powerUpBaseSize = 15; // Original size defined in PowerUp class
-
+    const powerUpBaseSize = 15;
+    let currentY3 = examplesY; // Reset Y for second column
     // Rapid Fire
     push();
-    translate(column2X, examplesY + itemSize / 2);
-    // Re-add pulsing calculation
-    let pulse1 = sin(frameCount * 0.1 + 0) * 0.15 + 0.85; 
-    let currentPuSize1 = powerUpBaseSize * pulse1 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    translate(column2X, currentY3 + itemSize / 2);
+    let pulse1 = sin(frameCount * 0.1 + 0) * 0.15 + 0.85;
+    let currentPuSize1 = powerUpBaseSize * pulse1 * (itemSize / powerUpBaseSize);
     fill(255, 255, 0); noStroke(); beginShape(); 
     for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize1; let y = sin(angle) * currentPuSize1; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize1 * 0.5; y = sin(angle) * currentPuSize1 * 0.5; vertex(x, y); } endShape(CLOSE);
     pop();
-    text("Rapid Fire", column2X + labelOffsetX, examplesY + itemSize / 2);
-    examplesY += itemSize + 15;
-
+    fill(255); // Ensure text is white
+    text("Rapid Fire", column2X + labelOffsetX, currentY3 + itemSize / 2); // Uncommented text
+    let currentY4 = currentY3 + itemSize + 15;
     // Extra Life
     push();
-    translate(column2X, examplesY + itemSize / 2);
-    // Re-add pulsing calculation (different phase)
-    let pulse2 = sin(frameCount * 0.1 + PI / 2) * 0.15 + 0.85; 
-    let currentPuSize2 = powerUpBaseSize * pulse2 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    translate(column2X, currentY4 + itemSize / 2);
+    let pulse2 = sin(frameCount * 0.1 + PI / 2) * 0.15 + 0.85;
+    let currentPuSize2 = powerUpBaseSize * pulse2 * (itemSize / powerUpBaseSize);
     fill(0, 255, 0); noStroke(); beginShape(); 
     for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize2; let y = sin(angle) * currentPuSize2; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize2 * 0.5; y = sin(angle) * currentPuSize2 * 0.5; vertex(x, y); } endShape(CLOSE);
     pop();
-    text("Extra Life", column2X + labelOffsetX, examplesY + itemSize / 2);
-    examplesY += itemSize + 15;
-
+    fill(255); // Ensure text is white
+    text("Extra Life", column2X + labelOffsetX, currentY4 + itemSize / 2); // Uncommented text
+    let currentY5 = currentY4 + itemSize + 15;
     // Nuke
     push();
-    translate(column2X, examplesY + itemSize / 2);
-    // Re-add pulsing calculation (different phase)
+    translate(column2X, currentY5 + itemSize / 2);
     let pulse3 = sin(frameCount * 0.1 + PI) * 0.15 + 0.85;
-    let currentPuSize3 = powerUpBaseSize * pulse3 * (itemSize / powerUpBaseSize); // Scale based on itemSize
+    let currentPuSize3 = powerUpBaseSize * pulse3 * (itemSize / powerUpBaseSize);
     fill(255, 0, 0); noStroke(); beginShape(); 
     for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize3; let y = sin(angle) * currentPuSize3; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize3 * 0.5; y = sin(angle) * currentPuSize3 * 0.5; vertex(x, y); } endShape(CLOSE);
     pop();
-    text("Nuke", column2X + labelOffsetX, examplesY + itemSize / 2);
-
-    // Determine end Y based on longest column + spacing
-    currentY = examplesY + itemSize + sectionSpacing;
-
-    // --- 4. Leaderboard ---
-    // Leaderboard takes care of its own title
-    drawLeaderboardToCanvas(width / 2, currentY);
-
-    // --- 5. Start Prompt ---
-    textSize(32);
-    textAlign(CENTER, CENTER);
-    fill(255);
-    text('Press SPACE to Start', width / 2, height * 0.95); // Position at very bottom
+    fill(255); // Ensure text is white
+    text("Nuke", column2X + labelOffsetX, currentY5 + itemSize / 2); // Uncommented text
+    
+    pop(); // End isolation push
 }
 
 function drawGameOver() {
+  // To be converted later? Keep canvas text for now or move to HTML?
+  // For now, keep drawing on canvas.
   fill(255, 0, 0);
   textSize(64);
-  text('GAME OVER', width / 2, height / 4); // Position higher
+  text('GAME OVER', width / 2, height / 4); 
   fill(255);
   textSize(32);
-  // Don't show final score here if the form is visible
   if (scoreFormDiv.style('display') === 'none') {
      text(`Final Score: ${score}`, width / 2, height / 3 + 20);
      textSize(24);
-     text('Press SPACE to Restart', width / 2, height * 0.9); // Position lower
+     text('Press SPACE to Restart', width / 2, height * 0.9); 
   }
-
-  // Draw Leaderboard on Game Over screen (if form is hidden)
+  // Draw Leaderboard on Game Over screen? 
+  // If we move leaderboard to HTML, we need a separate container for it here.
   if (scoreFormDiv.style('display') === 'none') {
-      drawLeaderboardToCanvas(width / 2, height / 2);
+      // drawLeaderboardToCanvas(width / 2, height / 2); // Keep canvas version for now?
   }
 }
 
 function drawHUD() {
-  fill(255);
-  textSize(20);
-  textAlign(LEFT, TOP);
-  text(`Score: ${score}`, 20, 20);
+  // --- Update HTML HUD Elements --- 
+  if (hudScoreElement) {
+    hudScoreElement.html(`Score: ${score}`);
+  }
+  if (hudLivesElement) {
+    hudLivesElement.html(`Lives: ${lives}`);
+  }
+  // ------------------------------
 
   // Display Power-up Timer if active
   if (player && player.powerUpActive) {
@@ -355,49 +439,7 @@ function drawHUD() {
     textSize(20); // Reset text size
   }
 
-  textAlign(RIGHT, TOP);
-  // Draw lives as icons (mini player ships)
-  let lifeIconSize = 15;
-  for (let i = 0; i < lives; i++) {
-      let x = width - 30 - i * (lifeIconSize + 10);
-      let y = 20 + lifeIconSize / 2;
-      push();
-      translate(x, y);
-      fill(0, 200, 255);
-      noStroke();
-      triangle(0, -lifeIconSize * 0.6, -lifeIconSize * 0.4, lifeIconSize * 0.4, lifeIconSize * 0.4, lifeIconSize * 0.4); // Body
-      fill(255, 150, 0);
-      rect(0, lifeIconSize * 0.5, lifeIconSize * 0.3, lifeIconSize * 0.2); // Engine
-      pop();
-  }
-  // text(`Lives: ${lives}`, width - 20, 20); // Alternative text lives
-
-  // --- Draw Auto-Shot Button --- 
-  autoShotButton.x = width - autoShotButton.margin - autoShotButton.size / 2;
-  autoShotButton.y = height - autoShotButton.margin - autoShotButton.size / 2;
-  
-  push();
-  translate(autoShotButton.x, autoShotButton.y);
-  stroke(255); // White outline
-  strokeWeight(2);
-  if (isAutoShotEnabled) {
-    fill(0, 200, 0, 150); // Greenish when active
-  } else {
-    fill(200, 0, 0, 150); // Reddish when inactive
-  }
-  ellipse(0, 0, autoShotButton.size, autoShotButton.size);
-  
-  // Draw text indicator inside button
-  noStroke();
-  fill(255);
-  textSize(12);
-  textAlign(CENTER, CENTER);
-  text(isAutoShotEnabled ? "AUTO" : "AUTO-FIRE", 0, 0);
-  pop();
-  // ---------------------------
-
-  textAlign(CENTER, CENTER); // Reset alignment
-  textSize(20); // Reset text size just in case
+  textAlign(CENTER, CENTER); 
 }
 
 
@@ -412,58 +454,58 @@ let isTouchingLeft = false;
 let isTouchingRight = false;
 // ---------------------------
 
-function touchStarted(event) { // Add event parameter
-  // Check if the touch target is the canvas
+function touchStarted(event) { 
   let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
+  let targetId = event.target?.id;
+  // console.log(`Touch Started - Target: ${targetId || 'unknown'}, Is Canvas: ${isCanvas}, Current State: ${gameState}`); 
 
-  // Only handle the first touch point
-  if (touches.length > 0) {
+  // --- Handle State Change on Touch (if appropriate) --- 
+  // Check if the touch is NOT on an interactive HTML element we want to isolate
+  let allowStateChange = true;
+  if (targetId === 'auto-shot-button' || 
+      targetId === 'username-input' || 
+      targetId === 'submit-score-button' || 
+      targetId === 'start-menu-button') {
+      allowStateChange = false; // Don't change game state if specific buttons/inputs are tapped
+  }
+
+  if (allowStateChange) {
+      if (gameState === 'START_MENU') {
+          console.log("Touch starting game from Start Menu..."); 
+          resetGame();
+          gameState = 'PLAYING';
+      } else if (gameState === 'GAME_OVER') {
+          if (scoreFormDiv && scoreFormDiv.style('display') === 'none') { // Only restart if form hidden
+              console.log("Touch restarting game from Game Over..."); 
+              resetGame();
+              gameState = 'PLAYING';
+          }
+      }
+  }
+  // -----------------------------------------------------
+
+  // --- Handle touch movement logic if on canvas --- 
+  if (isCanvas && touches.length > 0) {
     let touch = touches[0];
     currentTouchX = touch.x;
     currentTouchY = touch.y;
-    initialTouchPos = { x: currentTouchX, y: currentTouchY }; // Record start
-    touchDelta = { x: 0, y: 0 }; // Reset delta
+    initialTouchPos = { x: currentTouchX, y: currentTouchY }; 
+    touchDelta = { x: 0, y: 0 }; 
+    if (currentTouchX < width / 2) {
+        isTouchingLeft = true;
+        isTouchingRight = false; 
+    } else {
+        isTouchingRight = true; 
+        isTouchingLeft = false;
+    }
+  } 
 
-    // --- Check for Auto-Shot Button Tap (only if touch is on canvas) ---
-    if (isCanvas) {
-        let d = dist(currentTouchX, currentTouchY, autoShotButton.x, autoShotButton.y);
-        if (d < autoShotButton.size / 2) {
-          // Tapped the button
-          isAutoShotEnabled = !isAutoShotEnabled; // Toggle state
-          isTouchingLeft = false; 
-          isTouchingRight = false; 
-          initialTouchPos = null; // Don't track drag if button tapped
-        } else {
-          // --- Tap elsewhere on canvas ---
-          // Determine initial touch side
-          if (currentTouchX < width / 2) {
-              isTouchingLeft = true;
-              isTouchingRight = false; 
-          } else {
-              isTouchingRight = true; 
-              isTouchingLeft = false;
-          }
-        }
-    }
-    
-    // Game state specific actions for taps (can happen on or off canvas for start/restart)
-    if (gameState === 'GAME_OVER') {
-        // Only restart if the score form is NOT visible
-        if (scoreFormDiv && scoreFormDiv.style('display') === 'none') {
-           resetGame();
-           gameState = 'PLAYING';
-        }
-      } else if (gameState === 'START_MENU') {
-        resetGame();
-        gameState = 'PLAYING';
-    }
-  }
-  
-  // Prevent default only if touch was on the canvas
-  return !isCanvas;
+  // Prevent default only if touch was on the canvas AND it wasn't the auto-shot button
+  // We want default behavior for HTML buttons etc.
+  return !isCanvas || targetId === 'auto-shot-button'; // Prevent default for canvas OR auto-shot button taps
 }
 
-function touchMoved(event) { // Add event parameter
+function touchMoved(event) { 
   // Check if the touch target is the canvas
   let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
 
@@ -482,8 +524,8 @@ function touchMoved(event) { // Add event parameter
   return !isCanvas;
 }
 
-function touchEnded(event) { // Add event parameter
-   // Check if the touch target is the canvas
+function touchEnded(event) { 
+  // Check if the touch target is the canvas
   let isCanvas = (event.target && event.target.id === 'defaultCanvas0');
 
   // Reset touch state regardless of where touch ended
@@ -500,20 +542,24 @@ function touchEnded(event) { // Add event parameter
 }
 
 function keyPressed() {
-  // Player Shooting & State Transitions (using direct key check)
-  if (key === ' ' || keyCode === 32) { // Check Space bar directly
+  // console.log(`Key Pressed: ${key} (${keyCode}), Game State: ${gameState}`); // Remove log
+  
+  if (key === ' ' || keyCode === 32) { 
+      // console.log("Space bar detected!"); // Remove log
       if (gameState === 'PLAYING') {
+          // console.log("Attempting to shoot..."); // Remove log
           player.shoot();
       } else if (gameState === 'GAME_OVER') {
-          // Only restart if the score form is NOT visible
-          // Otherwise space might be used for username input
           if (scoreFormDiv && scoreFormDiv.style('display') === 'none') {
+             // console.log("Restarting game from Game Over..."); // Remove log
              resetGame();
              gameState = 'PLAYING';
           }
       } else if (gameState === 'START_MENU') {
-          resetGame();
+          // console.log("Starting game from Start Menu..."); // Remove log
+          resetGame(); // <<< CRITICAL: This must run
           gameState = 'PLAYING';
+          // console.log(`New Game State: ${gameState}`); // Remove log
       }
   }
 }
@@ -638,6 +684,7 @@ function checkCollisions() {
 function spawnEnemies() {
   let currentTime = millis();
   if (currentTime > lastSpawnTime + spawnInterval) {
+    console.log(`spawnEnemies - Spawning wave ${wave + 1}`); // <<< Log spawning
     wave++;
     lastSpawnTime = currentTime;
 
@@ -699,6 +746,10 @@ function triggerShake(duration, amplitude) {
 // Adjusts the canvas size when the browser window is resized
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
-  // Optional: Recalculate positions if needed (e.g., recenter player)
-  // player.pos.set(width / 2, height - 50); // Example: Recenter player
+  // HTML elements positions are handled by CSS, no need to update here usually
+  // unless their container size changes in a way CSS doesn't handle automatically.
+  // Keep button position update for now as it was simple absolute.
+  if (autoShotHtmlButton) {
+    autoShotHtmlButton.position(width - 80, height - 60); 
+  }
 }

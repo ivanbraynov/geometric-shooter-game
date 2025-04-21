@@ -4,14 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Geometric Shooter</title>
+    <link rel="stylesheet" href="style.css">
     <style> body {padding: 0; margin: 0; overflow: hidden;} </style>
-    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.5/lib/p5.min.js"></script>
+    <!-- Use full p5.js library (often includes DOM) -->
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.11.5/lib/p5.js"></script> 
+    <!-- <script src="https://cdn.jsdelivr.net/npm/p5@1.11.5/lib/addons/p5.dom.min.js"></script> --> <!-- Keep commented out for now -->
+    
     <!-- Add Supabase Client Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Add DB Setup -->
     <script src="db-setup.js"></script>
     <!-- Add Leaderboard Logic -->
     <script src="leaderboard.js"></script>
+    
     <!-- Add Game Constants -->
     <script src="constants.js"></script>
 
@@ -35,6 +40,11 @@
   <body>
     <main>
     </main>
+
+    <!-- Start Menu Container (Initially Hidden) -->
+    <div id="start-menu-container" style="display: none;">
+        <!-- Content will be added via p5.dom -->
+    </div>
 
     <!-- Score Submission Form (Initially Hidden) -->
     <div id="score-form" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(200, 200, 200, 0.9); padding: 20px; border-radius: 10px; text-align: center; font-family: monospace;">

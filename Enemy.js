@@ -87,6 +87,7 @@ class Enemy {
   }
 
   display() {
+    console.log(`Enemy.display - Type: ${this.type}, Pos: (${this.pos.x.toFixed(1)}, ${this.pos.y.toFixed(1)})`);
     push();
     translate(this.pos.x, this.pos.y);
     fill(this.color);
