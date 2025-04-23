@@ -9,10 +9,13 @@ let particleSystems =[];
 let powerUps = []; 
 let celestialBodies = []; // Array for background planets/suns
 
+let boss = null; // Track the current boss instance
+let bossActive = false; // Track if a boss fight is active
+let bossDefeated = false; // Track if boss was defeated this wave
+
 let score = 0;
 let lives = 3;
 let wave = 0; // To control enemy spawning difficulty
-
 
 // Effects
 let shakeDuration = 0;
@@ -254,19 +257,57 @@ function runGame() {
     }
   }
 
-  // Enemy Logic
-  spawnEnemies();
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    let wantsToShoot = enemies[i].update(); // Update returns true if ready to shoot
-    enemies[i].display();
+  // --- Boss Fight Logic ---
+  // Boss spawns at SPAWN_WAVE and every SPAWN_INTERVAL waves after
+  let isBossWave = (wave >= BOSS_SETTINGS.SPAWN_WAVE && (wave - BOSS_SETTINGS.SPAWN_WAVE) % BOSS_SETTINGS.SPAWN_INTERVAL === 0);
+  if (isBossWave && !bossActive && !bossDefeated) {
+    // Spawn the boss at the center top
+    boss = new Boss(width / 2, -120);
+    bossActive = true;
+    // Pause regular enemy spawns
+    enemies = [];
+  }
 
-    // If enemy wants to shoot, call shoot method with player reference
+  if (bossActive && boss) {
+    let wantsToShoot = boss.update();
+    boss.display();
     if (wantsToShoot) {
-        enemies[i].shoot(player);
+      boss.shoot(player);
     }
+    // Check if boss is offscreen (shouldn't happen, but safety)
+    if (boss.isOffscreen()) {
+      bossActive = false;
+      boss = null;
+    }
+  }
 
-    if (enemies[i].isOffscreen()) {
-      enemies.splice(i, 1);
+  // Check Boss defeat
+  if (bossActive && boss && boss.health <= 0) {
+    score += boss.scoreValue;
+    lives++; // Grant 1 extra life for defeating the boss
+    particleSystems.push(new ParticleSystem(boss.pos.x, boss.pos.y, boss.color, triggerShake));
+    bossActive = false;
+    bossDefeated = false; // Reset so next boss can spawn
+    boss = null;
+    // Optionally: Advance to next wave or give reward
+    wave++;
+    lastSpawnTime = millis();
+    spawnInterval *= 0.95; // Increase difficulty
+  }
+
+  // Only spawn enemies if not in boss fight
+  if (!bossActive) {
+    bossDefeated = false; // Reset bossDefeated for next boss wave
+    spawnEnemies();
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      let wantsToShoot = enemies[i].update();
+      enemies[i].display();
+      if (wantsToShoot) {
+        enemies[i].shoot(player);
+      }
+      if (enemies[i].isOffscreen()) {
+        enemies.splice(i, 1);
+      }
     }
   }
 
@@ -355,43 +396,84 @@ function drawItemExamples() {
     fill(35, 70, 140); stroke(200); strokeWeight(1); rect(-12, 16, 8, 16); rect(12, 16, 8, 16);
     pop();
     fill(255); // Ensure text is white
-    text("Heavy", column1X + labelOffsetX, currentY2 + itemSize / 2); // Uncommented text
+    text("Heavy", column1X + labelOffsetX, currentY2 + itemSize / 2);
+    let currentY3 = currentY2 + itemSize + 25;
+    // Boss Icon (left side, under enemies)
+    let bossBobOffset = sin(frameCount * 0.045 + 3) * 3; // Animate up and down like enemies
+    push();
+    translate(column1X, currentY3 + itemSize / 2 + bossBobOffset);
+    let bossR = itemSize * 1.2;
+    fill(255, 80, 0);
+    stroke(255, 200, 0);
+    strokeWeight(2);
+    beginShape();
+    for (let i = 0; i < 6; i++) {
+      let angle = PI / 3 * i - PI / 6;
+      vertex(cos(angle) * bossR, sin(angle) * bossR);
+    }
+    endShape(CLOSE);
+    // Eyes
+    fill(255, 255, 0, 220);
+    noStroke();
+    let eyeOffsetY = -bossR * 0.2;
+    let eyeOffsetX = bossR * 0.35;
+    let eyeW = bossR * 0.22;
+    let eyeH = bossR * 0.18;
+    rect(-eyeOffsetX, eyeOffsetY, eyeW, eyeH, 2);
+    rect(eyeOffsetX, eyeOffsetY, eyeW, eyeH, 2);
+    // Core
+    fill(255, 80, 0, 120);
+    ellipse(0, bossR * 0.25, bossR * 0.7, bossR * 0.7);
+    pop();
+    fill(255);
+    text("Boss", column1X + labelOffsetX, currentY3 + itemSize / 2 + bossBobOffset);
 
     // Power-ups Column
     const powerUpBaseSize = 15;
-    let currentY3 = examplesY; // Reset Y for second column
+    let currentY4 = examplesY; // Reset Y for second column
     // Rapid Fire
     push();
-    translate(column2X, currentY3 + itemSize / 2);
+    translate(column2X, currentY4 + itemSize / 2);
     let pulse1 = sin(frameCount * 0.1 + 0) * 0.15 + 0.85;
     let currentPuSize1 = powerUpBaseSize * pulse1 * (itemSize / powerUpBaseSize);
     fill(255, 255, 0); noStroke(); beginShape(); 
     for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize1; let y = sin(angle) * currentPuSize1; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize1 * 0.5; y = sin(angle) * currentPuSize1 * 0.5; vertex(x, y); } endShape(CLOSE);
     pop();
     fill(255); // Ensure text is white
-    text("Rapid Fire", column2X + labelOffsetX, currentY3 + itemSize / 2); // Uncommented text
-    let currentY4 = currentY3 + itemSize + 15;
+    text("Rapid Fire", column2X + labelOffsetX, currentY4 + itemSize / 2); // Uncommented text
+    let currentY5 = currentY4 + itemSize + 15;
     // Extra Life
     push();
-    translate(column2X, currentY4 + itemSize / 2);
+    translate(column2X, currentY5 + itemSize / 2);
     let pulse2 = sin(frameCount * 0.1 + PI / 2) * 0.15 + 0.85;
     let currentPuSize2 = powerUpBaseSize * pulse2 * (itemSize / powerUpBaseSize);
-    fill(0, 255, 0); noStroke(); beginShape(); 
-    for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize2; let y = sin(angle) * currentPuSize2; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize2 * 0.5; y = sin(angle) * currentPuSize2 * 0.5; vertex(x, y); } endShape(CLOSE);
+    fill(0, 255, 0); noStroke();
+    beginShape();
+    for (let i = 0; i < 5; i++) {
+      let angle = TWO_PI / 5 * i - HALF_PI;
+      let x = cos(angle) * currentPuSize2;
+      let y = sin(angle) * currentPuSize2;
+      vertex(x, y);
+      angle += TWO_PI / 10;
+      x = cos(angle) * currentPuSize2 * 0.5;
+      y = sin(angle) * currentPuSize2 * 0.5;
+      vertex(x, y);
+    }
+    endShape(CLOSE);
     pop();
     fill(255); // Ensure text is white
-    text("Extra Life", column2X + labelOffsetX, currentY4 + itemSize / 2); // Uncommented text
-    let currentY5 = currentY4 + itemSize + 15;
+    text("Extra Life", column2X + labelOffsetX, currentY5 + itemSize / 2);
+    let currentY6 = currentY5 + itemSize + 15;
     // Nuke
     push();
-    translate(column2X, currentY5 + itemSize / 2);
+    translate(column2X, currentY6 + itemSize / 2);
     let pulse3 = sin(frameCount * 0.1 + PI) * 0.15 + 0.85;
     let currentPuSize3 = powerUpBaseSize * pulse3 * (itemSize / powerUpBaseSize);
     fill(255, 0, 0); noStroke(); beginShape(); 
     for (let i = 0; i < 5; i++) { let angle = TWO_PI / 5 * i - HALF_PI; let x = cos(angle) * currentPuSize3; let y = sin(angle) * currentPuSize3; vertex(x, y); angle += TWO_PI / 10; x = cos(angle) * currentPuSize3 * 0.5; y = sin(angle) * currentPuSize3 * 0.5; vertex(x, y); } endShape(CLOSE);
     pop();
     fill(255); // Ensure text is white
-    text("Nuke", column2X + labelOffsetX, currentY5 + itemSize / 2); // Uncommented text
+    text("Nuke", column2X + labelOffsetX, currentY6 + itemSize / 2);
     
     pop(); // End isolation push
 }
@@ -427,14 +509,40 @@ function drawHUD() {
   // ------------------------------
 
   // Display Power-up Timer if active (Keep this on canvas for now? Or convert too?)
+  let powerupTextY = 40;
   if (player && player.powerUpActive) {
     let remainingSeconds = ceil(player.powerUpTimer / 60);
     fill(255, 255, 0); // Yellow for timer text
     textSize(18); 
     textAlign(CENTER, TOP);
-    text(`${player.powerUpType.replace('_', ' ').toUpperCase()} ACTIVE: ${remainingSeconds}s`, width / 2, 40); // Increased Y from 15 to 40
+    text(`${player.powerUpType.replace('_', ' ').toUpperCase()} ACTIVE: ${remainingSeconds}s`, width / 2, powerupTextY); // Increased Y from 15 to 40
     fill(255); // Reset fill color
     textSize(20); // Reset text size
+  }
+
+  // Draw boss health bar if active, below the power-up timer
+  if (bossActive && boss) {
+    let barWidth = width * 0.4;
+    let barHeight = 24;
+    let x = width / 2 - barWidth / 2;
+    let barY = powerupTextY + 28; // 18px text + 10px gap
+    let pct = boss.health / boss.maxHealth;
+    // Center the health bar visually
+    push();
+    rectMode(CORNER);
+    // Background
+    fill(60, 0, 0, 180);
+    rect(x, barY, barWidth, barHeight, 8);
+    // Health
+    fill(255, 80, 0);
+    rect(x, barY, barWidth * pct, barHeight, 8);
+    // Border
+    noFill();
+    stroke(255, 200, 0);
+    strokeWeight(2);
+    rect(x, barY, barWidth, barHeight, 8);
+    noStroke();
+    pop();
   }
 
   textAlign(CENTER, CENTER); 
@@ -578,6 +686,9 @@ function resetGame() {
   spawnInterval = 2000; 
   lastPowerUpSpawnTime = millis();
   powerUpSpawnInterval = 15000;
+  boss = null;
+  bossActive = false;
+  bossDefeated = false;
 }
 
 // -------- Collision Detection --------
@@ -671,6 +782,20 @@ function checkCollisions() {
         // particleSystems.push(new ParticleSystem(enemyProjectiles[j].pos.x, enemyProjectiles[j].pos.y, color(200, 200, 200), triggerShake));
 
         // Break inner loop as player projectile is gone
+        break;
+      }
+    }
+  }
+
+  // Player Projectiles vs Boss
+  if (bossActive && boss) {
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      if (projectiles[i] && boss && dist(projectiles[i].pos.x, projectiles[i].pos.y, boss.pos.x, boss.pos.y) < boss.size / 2) {
+        let killed = boss.hit();
+        projectiles.splice(i, 1);
+        if (killed) {
+          // Handled in runGame
+        }
         break;
       }
     }
