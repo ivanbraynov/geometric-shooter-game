@@ -23,7 +23,7 @@ const GAME_SETTINGS = {
 const BOSS_SETTINGS = {
     HEALTH: 50,
     ENTRY_Y: 160, // Y position where boss stops
-    SPAWN_WAVE: 15, // First boss wave
-    SPAWN_INTERVAL: 20, // Boss appears every 20 waves after first (increased)
+    SPAWN_WAVE: 30, // First boss wave
+    SPAWN_INTERVAL: 40, // Boss appears every 40 waves after first (increased)
     INVULNERABLE_TIME: 120 // Frames boss is invulnerable after entering (e.g. 2 seconds at 60fps)
 };
